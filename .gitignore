@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# AutoDS storage (uploads, models, reports, sqlite db)
+backend/storage/uploads/
+backend/storage/artifacts/
+backend/storage/reports/
+backend/storage/*.db
+backend/.env
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Scratch
+/tmp/
+backend/.venv/

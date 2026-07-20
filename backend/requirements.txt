@@ -1,0 +1,26 @@
+# AutoDS backend — core dependencies (Milestone 1-2).
+# Install:  pip install -r requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+pydantic>=2.6
+pydantic-settings>=2.2
+SQLAlchemy>=2.0
+pandas>=2.1
+numpy>=1.26
+openpyxl>=3.1          # Excel reading
+pyarrow>=15.0          # Parquet reading
+email-validator>=2.1   # pydantic EmailStr
+
+# --- Security / auth ---
+PyJWT>=2.8
+bcrypt>=4.1
+slowapi>=0.1.9         # rate limiting (in-memory or Redis backend)
+
+# Optional: Postgres driver for horizontal scaling (multi-replica).
+# psycopg[binary]>=3.1
+# Optional: Redis for shared rate-limit storage across replicas.
+# redis>=5.0
+
+# --- Heavy ML stack (Milestone 3+) lives in requirements-ml.txt ---
+# Kept separate because PyCaret/PyTorch pin versions and can conflict on Windows.

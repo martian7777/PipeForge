@@ -1,0 +1,23 @@
+# AutoDS backend — heavy ML stack (Milestone 3+).
+# Install AFTER requirements.txt, ideally in the same venv:
+#     pip install -r requirements-ml.txt
+#
+# NOTE: PyCaret pins specific scikit-learn / numpy versions. If pip reports
+# conflicts with PyTorch on Windows, prefer FLAML as the tabular engine and/or
+# install PyCaret in a dedicated virtualenv invoked as a subprocess by the worker.
+
+scikit-learn>=1.4
+xgboost>=2.0
+lightgbm>=4.3
+joblib>=1.3
+
+# AutoML orchestration (choose one as default at Milestone 3):
+flaml[automl]>=2.1
+# pycaret>=3.3          # uncomment if using PyCaret as the tabular engine
+
+# Deep learning (Milestone 4):
+torch>=2.2
+
+# Time series (Milestone 4):
+statsforecast>=1.7
+prophet>=1.1
