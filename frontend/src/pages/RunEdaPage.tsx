@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api } from "../api/client";
+import { api, tokenStore } from "../api/client";
 import type { EdaResult, Leaderboard, ModelDetail, RunStatus } from "../types";
 
 const Chart = lazy(() => import("../components/Chart"));
@@ -125,7 +125,7 @@ export default function RunEdaPage() {
             EDA
           </button>
           {eda?.report_url && (
-            <a className="btn ghost" href={`/api/runs/${runId}/report`} target="_blank" rel="noreferrer">
+            <a className="btn ghost" href={`/api/runs/${runId}/report?token=${tokenStore.get() || ""}`} target="_blank" rel="noreferrer">
               HTML report ↗
             </a>
           )}

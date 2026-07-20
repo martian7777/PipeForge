@@ -11,7 +11,7 @@ from typing import Any
 
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,7 @@ from .config import settings
 from .db import get_db
 from .models import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -57,11 +57,17 @@ _credentials_exc = HTTPException(
 
 
 def current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+    request: Request,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
 ) -> User:
     """Resolve and return the authenticated user, or raise 401."""
+    actual_token = request.query_params.get("token") or token
+    if not actual_token:
+        raise _credentials_exc
+
     try:
-        payload = decode_token(token)
+        payload = decode_token(actual_token)
         user_id = int(payload.get("sub", ""))
     except (jwt.PyJWTError, ValueError):
         raise _credentials_exc
