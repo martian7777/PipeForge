@@ -46,7 +46,7 @@ export default function UploadPage() {
         <h1>Upload a dataset</h1>
         <p className="subtle">
           CSV, TSV, JSON, Excel, or Parquet. We'll infer the schema, then you pick the
-          problem type and let AutoDS build the pipeline.
+          problem type and let PipeForge build the pipeline.
         </p>
         <div
           className={`dropzone ${dragging ? "drag" : ""}`}
@@ -59,7 +59,7 @@ export default function UploadPage() {
           onDrop={onDrop}
         >
           {uploading ? (
-            <div className="spinner">Uploading &amp; parsing…</div>
+            <div className="spinner">Uploading &amp; parsingâ€¦</div>
           ) : (
             <>
               <div style={{ fontSize: 16, fontWeight: 600 }}>
@@ -85,7 +85,7 @@ export default function UploadPage() {
       <div className="card">
         <h2>Your datasets</h2>
         {datasets.length === 0 ? (
-          <p className="subtle">No datasets yet — upload one above.</p>
+          <p className="subtle">No datasets yet â€” upload one above.</p>
         ) : (
           <div className="dataset-list">
             {datasets.map((d) => (
@@ -93,7 +93,7 @@ export default function UploadPage() {
                 <div>
                   <a href={`/datasets/${d.id}`}>{d.filename}</a>
                   <div className="meta">
-                    {d.n_rows.toLocaleString()} rows × {d.n_cols} cols · {d.file_format}
+                    {d.n_rows.toLocaleString()} rows Ã— {d.n_cols} cols Â· {d.file_format}
                   </div>
                 </div>
                 <button

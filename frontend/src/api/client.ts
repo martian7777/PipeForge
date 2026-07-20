@@ -15,7 +15,7 @@ import type {
   Token,
 } from "../types";
 
-const TOKEN_KEY = "autods_token";
+const TOKEN_KEY = "pipeforge_token";
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),

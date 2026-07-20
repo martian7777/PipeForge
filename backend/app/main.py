@@ -1,4 +1,4 @@
-"""AutoDS FastAPI application entrypoint.
+"""PipeForge FastAPI application entrypoint.
 
 Run locally with:
     uvicorn app.main:app --reload --port 8000

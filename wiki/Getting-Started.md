@@ -35,17 +35,17 @@ Open http://localhost:5173.
 ## 3. Use it
 
 1. **Register** an account (email + password, min 8 chars).
-2. **Upload** a dataset — drag a CSV/JSON/Excel/Parquet file onto the dropzone.
+2. **Upload** a dataset â€” drag a CSV/JSON/Excel/Parquet file onto the dropzone.
 3. On the dataset page, confirm the **problem type** and **target column** (pre-filled by
    auto-detection) and pick cleaning options.
-4. Click **Run pipeline → EDA**.
-5. Explore the **EDA dashboard** — stat tiles, interactive charts, and a link to the full
+4. Click **Run pipeline â†’ EDA**.
+5. Explore the **EDA dashboard** â€” stat tiles, interactive charts, and a link to the full
    HTML report.
 
 ## 4. (Optional) Run the scalable stack
 
 ```bash
-export AUTODS_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+export PIPEFORGE_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 docker compose up --build --scale backend=3
 # open http://localhost:8080
 ```
@@ -55,6 +55,6 @@ that load-balances across them. See [Deployment](../docs/DEPLOYMENT.md).
 
 ## Sample data to try
 
-- **Classification** — any CSV with a low-cardinality last column (e.g. Iris, Titanic).
-- **Regression** — a CSV with a continuous numeric target (e.g. housing prices).
-- **Time series** — a CSV with a date column + a numeric value column.
+- **Classification** â€” any CSV with a low-cardinality last column (e.g. Iris, Titanic).
+- **Regression** â€” a CSV with a continuous numeric target (e.g. housing prices).
+- **Time series** â€” a CSV with a date column + a numeric value column.

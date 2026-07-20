@@ -14,31 +14,31 @@ uvicorn app.main:app --reload --port 8000
 cd frontend; npm install; npm run dev
 ```
 
-Uses SQLite (`backend/storage/autods.db`) and in-memory rate limiting — zero external
+Uses SQLite (`backend/storage/pipeforge.db`) and in-memory rate limiting â€” zero external
 services required.
 
 ## Configuration (environment variables)
 
-All settings are overridable with the `AUTODS_` prefix (see `app/config.py`):
+All settings are overridable with the `PIPEFORGE_` prefix (see `app/config.py`):
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `AUTODS_DATABASE_URL` | SQLite file | Set to a `postgresql+psycopg://...` DSN for prod |
-| `AUTODS_JWT_SECRET` | dev placeholder | **Override** with a ≥32-byte random string |
-| `AUTODS_ACCESS_TOKEN_TTL_MINUTES` | 1440 | Token lifetime |
-| `AUTODS_RATELIMIT_STORAGE` | `memory://` | Set `redis://host:6379/0` for multi-replica |
-| `AUTODS_RATELIMIT_DEFAULT` / `_AUTH` / `_UPLOAD` | 200/10/30 per min | slowapi strings |
-| `AUTODS_CORS_ORIGINS` | localhost:5173 | JSON list of allowed origins |
-| `AUTODS_MAX_UPLOAD_BYTES` | 200 MB | Hard upload cap |
-| `AUTODS_STORAGE_SHARD_PREFIX_LEN` | 2 | Hex chars for the storage shard (2 ⇒ 256 shards) |
+| `PIPEFORGE_DATABASE_URL` | SQLite file | Set to a `postgresql+psycopg://...` DSN for prod |
+| `PIPEFORGE_JWT_SECRET` | dev placeholder | **Override** with a â‰¥32-byte random string |
+| `PIPEFORGE_ACCESS_TOKEN_TTL_MINUTES` | 1440 | Token lifetime |
+| `PIPEFORGE_RATELIMIT_STORAGE` | `memory://` | Set `redis://host:6379/0` for multi-replica |
+| `PIPEFORGE_RATELIMIT_DEFAULT` / `_AUTH` / `_UPLOAD` | 200/10/30 per min | slowapi strings |
+| `PIPEFORGE_CORS_ORIGINS` | localhost:5173 | JSON list of allowed origins |
+| `PIPEFORGE_MAX_UPLOAD_BYTES` | 200 MB | Hard upload cap |
+| `PIPEFORGE_STORAGE_SHARD_PREFIX_LEN` | 2 | Hex chars for the storage shard (2 â‡’ 256 shards) |
 
-## Docker — horizontally scalable stack
+## Docker â€” horizontally scalable stack
 
 The provided `docker-compose.yml` runs Postgres, Redis, N stateless backend replicas,
 and an nginx gateway that serves the SPA and load-balances `/api`.
 
 ```bash
-export AUTODS_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
+export PIPEFORGE_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 docker compose up --build --scale backend=3
 # open http://localhost:8080
 ```
@@ -48,16 +48,16 @@ docker compose up --build --scale backend=3
 The nginx gateway (`frontend/nginx.frontend.conf`) proxies `/api` using a **variable**
 upstream (`proxy_pass http://$backend_upstream:8000`) with Docker's embedded DNS resolver.
 Docker resolves the `backend` service name to **all replica IPs** and nginx round-robins
-across them at request time. Add or remove replicas and traffic rebalances automatically —
+across them at request time. Add or remove replicas and traffic rebalances automatically â€”
 no config change.
 
 ### Why it scales
 
 The backend keeps **no per-process state**:
-- sessions → **JWT** (any replica validates any token),
-- metadata → **Postgres**,
-- rate-limit counters → **Redis**,
-- files → the **shared `storage` volume**.
+- sessions â†’ **JWT** (any replica validates any token),
+- metadata â†’ **Postgres**,
+- rate-limit counters â†’ **Redis**,
+- files â†’ the **shared `storage` volume**.
 
 So `--scale backend=N` is safe for any N. In Kubernetes this maps to a `Deployment` with
 `replicas: N` behind a `Service` + `Ingress`; use a `ReadWriteMany` PVC or object storage
@@ -65,12 +65,12 @@ So `--scale backend=N` is safe for any N. In Kubernetes this maps to a `Deployme
 
 ## Production checklist
 
-1. **Secrets** — inject `AUTODS_JWT_SECRET` and DB credentials via your secret manager.
-2. **Database migrations** — replace startup `create_all` with an Alembic migration job
+1. **Secrets** â€” inject `PIPEFORGE_JWT_SECRET` and DB credentials via your secret manager.
+2. **Database migrations** â€” replace startup `create_all` with an Alembic migration job
    so concurrent replicas don't race on DDL.
-3. **TLS** — terminate at the gateway/ingress; add HSTS.
-4. **Storage** — back the `storage` volume with durable object storage.
-5. **Observability** — add structured logging, metrics (`/metrics`), and health/readiness
+3. **TLS** â€” terminate at the gateway/ingress; add HSTS.
+4. **Storage** â€” back the `storage` volume with durable object storage.
+5. **Observability** â€” add structured logging, metrics (`/metrics`), and health/readiness
    probes (`/api/health`).
-6. **Autoscaling** — scale the backend on CPU/latency; scale training workers separately
+6. **Autoscaling** â€” scale the backend on CPU/latency; scale training workers separately
    once Milestone 3 lands.

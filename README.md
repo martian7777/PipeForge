@@ -1,6 +1,6 @@
-# AutoDS — End-to-End Data Science Pipeline Platform
+# PipeForge — End-to-End Data Science Pipeline Platform
 
-Upload a data file, tell AutoDS what kind of problem it is (or let it guess), and it
+Upload a data file, tell PipeForge what kind of problem it is (or let it guess), and it
 runs the full standard data science pipeline for you: **ingest → clean/ETL → EDA →
 AutoML training across model families → best-model selection → predict**.
 
@@ -30,7 +30,7 @@ See the full roadmap in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## AutoML — what you get (Milestone 3)
 
-AutoDS trains **8 candidate models** per run and ranks them into a leaderboard:
+PipeForge trains **8 candidate models** per run and ranks them into a leaderboard:
 
 | Family    | Classification models                  | Regression models                    |
 | --------- | -------------------------------------- | ------------------------------------ |

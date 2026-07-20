@@ -16,13 +16,13 @@ STORAGE_DIR = BACKEND_DIR / "storage"
 class Settings(BaseSettings):
     """Runtime settings. Override via environment variables or a .env file."""
 
-    model_config = SettingsConfigDict(env_prefix="AUTODS_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="PIPEFORGE_", env_file=".env", extra="ignore")
 
-    app_name: str = "AutoDS"
+    app_name: str = "PipeForge"
 
-    # Database. Defaults to local SQLite; set AUTODS_DATABASE_URL to a Postgres DSN
+    # Database. Defaults to local SQLite; set PIPEFORGE_DATABASE_URL to a Postgres DSN
     # (e.g. postgresql+psycopg://user:pass@host/db) for multi-replica / horizontal scaling.
-    database_url: str = f"sqlite:///{(STORAGE_DIR / 'autods.db').as_posix()}"
+    database_url: str = f"sqlite:///{(STORAGE_DIR / 'pipeforge.db').as_posix()}"
 
     # Storage subdirectories.
     storage_dir: Path = STORAGE_DIR
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # of hex characters used for the shard prefix (2 => 256 shards).
     storage_shard_prefix_len: int = 2
 
-    # CORS origins for the local Vite dev server (override via AUTODS_CORS_ORIGINS).
+    # CORS origins for the local Vite dev server (override via PIPEFORGE_CORS_ORIGINS).
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # Max upload size in bytes (200 MB default).
@@ -49,14 +49,14 @@ class Settings(BaseSettings):
     job_max_workers: int = 2
 
     # --- Security / auth ---
-    # JWT signing secret. MUST be overridden in production via AUTODS_JWT_SECRET.
+    # JWT signing secret. MUST be overridden in production via PIPEFORGE_JWT_SECRET.
     jwt_secret: str = "dev-insecure-change-me-please-override-in-production-32b+"
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 60 * 24  # 24h
 
     # --- Rate limiting ---
     # slowapi limit strings. Storage backend: in-memory by default; set a Redis URI
-    # (e.g. redis://localhost:6379) via AUTODS_RATELIMIT_STORAGE for multi-replica use.
+    # (e.g. redis://localhost:6379) via PIPEFORGE_RATELIMIT_STORAGE for multi-replica use.
     ratelimit_default: str = "200/minute"
     ratelimit_auth: str = "10/minute"
     ratelimit_upload: str = "30/minute"

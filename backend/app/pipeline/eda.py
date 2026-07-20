@@ -165,14 +165,14 @@ def render_html_report(
 ) -> None:
     """Write a self-contained static HTML report of describe() + dtypes + missingness."""
     desc = df.describe(include="all").transpose()
-    desc_html = desc.to_html(classes="tbl", border=0, na_rep="—", float_format=lambda x: f"{x:.4g}")
+    desc_html = desc.to_html(classes="tbl", border=0, na_rep="â€”", float_format=lambda x: f"{x:.4g}")
     missing = summary["missing_by_column"]
     missing_rows = "".join(
         f"<tr><td>{html.escape(str(k))}</td><td>{v}</td></tr>" for k, v in missing.items()
     ) or "<tr><td colspan=2>No missing values</td></tr>"
 
     doc = f"""<!doctype html><html><head><meta charset="utf-8">
-<title>AutoDS EDA Report</title>
+<title>PipeForge EDA Report</title>
 <style>
  body{{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:32px;background:#0f1220;color:#e6e8f0}}
  h1{{margin:0 0 4px}} .muted{{color:#9aa3c0}}
@@ -183,8 +183,8 @@ def render_html_report(
  .tbl th,.tbl td{{border-bottom:1px solid #2b3150;padding:6px 10px;text-align:left}}
  .tbl th{{color:#9aa3c0}} .wrap{{overflow-x:auto}}
 </style></head><body>
-<h1>AutoDS — EDA Report</h1>
-<div class="muted">{summary['n_rows']:,} rows × {summary['n_cols']} columns ·
+<h1>PipeForge â€” EDA Report</h1>
+<div class="muted">{summary['n_rows']:,} rows Ã— {summary['n_cols']} columns Â·
  {summary['total_missing']:,} missing cells</div>
 <div class="grid">
  <div class="stat"><div class="muted">Numeric</div><b>{summary['n_numeric']}</b></div>

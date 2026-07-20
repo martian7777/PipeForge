@@ -5,7 +5,7 @@ path in a thread pool, writing stage/progress back to the Run row so the fronten
 poll ``/api/runs/{id}/status``. This keeps the API responsive during long training jobs.
 
 At fleet scale the in-process pool is swapped for a shared queue (Redis/RQ or Celery)
-so training workers scale independently of the API — see docs/ROADMAP.md.
+so training workers scale independently of the API â€” see docs/ROADMAP.md.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from ..db import SessionLocal
 from ..models import Dataset, ModelResult, Run
 from ..pipeline import clean, eda, ingest, registry, train
 
-_executor = ThreadPoolExecutor(max_workers=settings.job_max_workers, thread_name_prefix="autods-job")
+_executor = ThreadPoolExecutor(max_workers=settings.job_max_workers, thread_name_prefix="pipeforge-job")
 
 # Task types that go through model training (Milestone 3). Others stop after EDA.
 TRAINABLE = {"classification", "regression"}

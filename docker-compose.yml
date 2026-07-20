@@ -1,12 +1,12 @@
-# AutoDS — horizontally scalable deployment.
+# PipeForge â€” horizontally scalable deployment.
 #
 #   docker compose up --build --scale backend=3
 #
 # Topology:
-#   frontend (nginx)  ── serves the SPA and load-balances /api across N backend replicas
-#   backend  (N x)    ── stateless FastAPI; JWT auth, shared Postgres + Redis + storage
-#   db       (postgres) ── shared relational store (replaces local SQLite)
-#   redis             ── shared rate-limit counters (so limits hold across replicas)
+#   frontend (nginx)  â”€â”€ serves the SPA and load-balances /api across N backend replicas
+#   backend  (N x)    â”€â”€ stateless FastAPI; JWT auth, shared Postgres + Redis + storage
+#   db       (postgres) â”€â”€ shared relational store (replaces local SQLite)
+#   redis             â”€â”€ shared rate-limit counters (so limits hold across replicas)
 #
 # Because the backend is stateless (JWT, no in-process session/state) and all shared
 # state lives in Postgres / Redis / the mounted storage volume, you can raise the
@@ -16,13 +16,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: autods
-      POSTGRES_PASSWORD: autods
-      POSTGRES_DB: autods
+      POSTGRES_USER: pipeforge
+      POSTGRES_PASSWORD: pipeforge
+      POSTGRES_DB: pipeforge
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U autods"]
+      test: ["CMD-SHELL", "pg_isready -U pipeforge"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -38,10 +38,10 @@ services:
   backend:
     build: ./backend
     environment:
-      AUTODS_DATABASE_URL: postgresql+psycopg://autods:autods@db:5432/autods
-      AUTODS_RATELIMIT_STORAGE: redis://redis:6379/0
-      AUTODS_JWT_SECRET: ${AUTODS_JWT_SECRET:-please-override-with-a-32-byte-random-secret-in-prod}
-      AUTODS_CORS_ORIGINS: '["http://localhost:8080"]'
+      PIPEFORGE_DATABASE_URL: postgresql+psycopg://pipeforge:pipeforge@db:5432/pipeforge
+      PIPEFORGE_RATELIMIT_STORAGE: redis://redis:6379/0
+      PIPEFORGE_JWT_SECRET: ${PIPEFORGE_JWT_SECRET:-please-override-with-a-32-byte-random-secret-in-prod}
+      PIPEFORGE_CORS_ORIGINS: '["http://localhost:8080"]'
     volumes:
       - storage:/app/storage           # shared object storage across replicas
     depends_on:

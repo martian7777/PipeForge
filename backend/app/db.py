@@ -1,4 +1,4 @@
-"""SQLAlchemy engine, session factory, and Base for AutoDS metadata."""
+"""SQLAlchemy engine, session factory, and Base for PipeForge metadata."""
 from __future__ import annotations
 
 from collections.abc import Iterator

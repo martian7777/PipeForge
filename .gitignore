@@ -6,7 +6,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 
-# AutoDS storage (uploads, models, reports, sqlite db)
+# PipeForge storage (uploads, models, reports, sqlite db)
 backend/storage/uploads/
 backend/storage/artifacts/
 backend/storage/reports/

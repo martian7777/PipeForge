@@ -1,4 +1,4 @@
-# AutoDS frontend image: build with Vite, serve static assets via nginx.
+# PipeForge frontend image: build with Vite, serve static assets via nginx.
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

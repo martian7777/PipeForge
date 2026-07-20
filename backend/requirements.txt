@@ -1,4 +1,4 @@
-# AutoDS backend — core dependencies (Milestone 1-2).
+# PipeForge backend â€” core dependencies (Milestone 1-2).
 # Install:  pip install -r requirements.txt
 fastapi>=0.110
 uvicorn[standard]>=0.29

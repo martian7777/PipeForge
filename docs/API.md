@@ -9,7 +9,7 @@ bearer token:
 Authorization: Bearer <access_token>
 ```
 
-Datasets and runs are **scoped to the authenticated user** — you can only see your own.
+Datasets and runs are **scoped to the authenticated user** â€” you can only see your own.
 
 ---
 
@@ -27,7 +27,7 @@ Create an account and receive a token. Rate limited (default 10/min).
 `409` if the email is already registered.
 
 ### `POST /api/auth/login`
-OAuth2 password flow — send **form-encoded** `username` (the email) and `password`.
+OAuth2 password flow â€” send **form-encoded** `username` (the email) and `password`.
 
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
@@ -68,15 +68,15 @@ Suggest a problem type and candidate target columns:
   "datetime_columns": [] }
 ```
 
-### `DELETE /api/datasets/{id}`  → `204`
+### `DELETE /api/datasets/{id}`  â†’ `204`
 
 ---
 
 ## Runs
 
-### `POST /api/runs`  → `201`
-Kick off a pipeline run. The run is **asynchronous** — it returns immediately with
-`status: "queued"` and the full pipeline (clean → EDA → train → evaluate → persist)
+### `POST /api/runs`  â†’ `201`
+Kick off a pipeline run. The run is **asynchronous** â€” it returns immediately with
+`status: "queued"` and the full pipeline (clean â†’ EDA â†’ train â†’ evaluate â†’ persist)
 executes in a background thread. The frontend polls `/status` for progress.
 
 ```json
@@ -125,7 +125,7 @@ EDA payload:
   "report_url": "/api/runs/1/report"
 }
 ```
-Chart `kind ∈ histogram|bar|heatmap|scatter|line|box`. The frontend renders these with Plotly.
+Chart `kind âˆˆ histogram|bar|heatmap|scatter|line|box`. The frontend renders these with Plotly.
 
 `409` if the EDA stage has not completed yet.
 
@@ -219,7 +219,7 @@ curl -H "Authorization: Bearer $TOK" \
 ```
 
 The file can be any supported format (`.csv`, `.tsv`, `.json`, `.xlsx`, `.xls`, `.parquet`).
-The model's bundled preprocessor transforms the input columns automatically — no manual
+The model's bundled preprocessor transforms the input columns automatically â€” no manual
 feature engineering needed.
 
 **Response:**
@@ -240,7 +240,7 @@ feature engineering needed.
 
 ## Health
 
-### `GET /api/health` → `{ "status": "ok", "app": "AutoDS" }`
+### `GET /api/health` â†’ `{ "status": "ok", "app": "PipeForge" }`
 
 ## Error shape
 

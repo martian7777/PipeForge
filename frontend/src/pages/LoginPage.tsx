@@ -30,7 +30,7 @@ export default function LoginPage() {
     <div style={{ maxWidth: 400, margin: "60px auto" }}>
       <div className="card">
         <h1>{mode === "login" ? "Sign in" : "Create account"}</h1>
-        <p className="subtle">Access your AutoDS workspace.</p>
+        <p className="subtle">Access your PipeForge workspace.</p>
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span className="subtle">Email</span>
@@ -50,11 +50,11 @@ export default function LoginPage() {
               required
               minLength={8}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
             />
           </label>
           <button className="btn" type="submit" disabled={busy}>
-            {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Register"}
+            {busy ? "Please waitâ€¦" : mode === "login" ? "Sign in" : "Register"}
           </button>
         </form>
         {error && <div className="error">{error}</div>}

@@ -1,4 +1,4 @@
-# AutoDS backend — heavy ML stack (Milestone 3+).
+# PipeForge backend â€” heavy ML stack (Milestone 3+).
 # Install AFTER requirements.txt, ideally in the same venv:
 #     pip install -r requirements-ml.txt
 #
