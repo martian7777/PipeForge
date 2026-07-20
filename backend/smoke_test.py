@@ -1,20 +1,39 @@
-"""End-to-end smoke test: auth -> upload -> detect -> run (clean + EDA)."""
+"""End-to-end smoke test: auth -> upload -> detect -> async run (clean + EDA + train)."""
 from __future__ import annotations
 
 import io
+import time
 
+import numpy as np
+import pandas as pd
 from fastapi.testclient import TestClient
 
 from app.main import app
 
-CSV = b"""age,city,income,purchased
-34,NYC,72000,yes
-28,LA,54000,no
-45,NYC,98000,yes
-52,SF,120000,yes
-23,LA,,no
-34,NYC,72000,yes
-"""
+
+def _csv() -> bytes:
+    rng = np.random.default_rng(7)
+    n = 40
+    age = rng.integers(20, 65, n)
+    income = rng.normal(70000, 15000, n).round(0)
+    income[3] = np.nan  # exercise imputation
+    city = rng.choice(["NYC", "LA", "SF"], n)
+    purchased = np.where(income > np.nanmedian(income), "yes", "no")
+    df = pd.DataFrame({"age": age, "city": city, "income": income, "purchased": purchased})
+    return df.to_csv(index=False).encode()
+
+
+CSV = _csv()
+
+
+def _poll(client, headers, run_id, timeout=120):
+    start = time.time()
+    while time.time() - start < timeout:
+        s = client.get(f"/api/runs/{run_id}/status", headers=headers).json()
+        if s["status"] in ("done", "error"):
+            return s
+        time.sleep(0.5)
+    raise TimeoutError("run did not finish")
 
 
 def main() -> None:
@@ -52,7 +71,7 @@ def main() -> None:
         d = client.post(f"/api/datasets/{ds['id']}/detect", headers=headers).json()
         print("suggested task:", d["suggested_task"])
 
-        # Create a run (cleaning + EDA).
+        # Create an async run (cleaning + EDA + training).
         run_body = {
             "dataset_id": ds["id"],
             "task_type": "classification",
@@ -61,8 +80,10 @@ def main() -> None:
         run = client.post("/api/runs", json=run_body, headers=headers)
         assert run.status_code == 201, run.text
         run_json = run.json()
-        print("run status:", run_json["status"], "stage:", run_json["stage"])
-        assert run_json["status"] == "done", run_json
+        assert run_json["status"] == "queued", run_json
+        final = _poll(client, headers, run_json["id"])
+        print("run finished:", final["status"], "-", final["message"])
+        assert final["status"] == "done", final
 
         # EDA payload.
         eda = client.get(f"/api/runs/{run_json['id']}/eda", headers=headers).json()

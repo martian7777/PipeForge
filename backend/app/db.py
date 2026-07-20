@@ -3,17 +3,35 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import settings
 
-# check_same_thread=False so the ProcessPool/threaded API can share the SQLite file.
+_is_sqlite = settings.database_url.startswith("sqlite")
+
+# check_same_thread=False so the background job threads can share the SQLite file;
+# a busy timeout avoids "database is locked" when a job writes while the API reads.
+_connect_args = {"check_same_thread": False, "timeout": 30} if _is_sqlite else {}
+
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False},
+    connect_args=_connect_args,
+    pool_pre_ping=True,
     future=True,
 )
+
+
+if _is_sqlite:
+
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
+        """Enable WAL + reasonable durability so concurrent read/write behaves."""
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA synchronous=NORMAL")
+        cur.execute("PRAGMA busy_timeout=30000")
+        cur.close()
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 

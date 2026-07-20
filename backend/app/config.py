@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # Number of preview rows returned by the preview endpoint.
     preview_rows: int = 50
 
+    # Background training job runner: number of concurrent pipeline jobs.
+    job_max_workers: int = 2
+
     # --- Security / auth ---
     # JWT signing secret. MUST be overridden in production via AUTODS_JWT_SECRET.
     jwt_secret: str = "dev-insecure-change-me-please-override-in-production-32b+"

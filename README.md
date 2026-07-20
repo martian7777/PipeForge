@@ -12,7 +12,7 @@ AutoML training across model families → best-model selection → predict**.
 | Storage   | Sharded local filesystem (dev) → shared volume / object store (prod)   |
 | Database  | SQLite (dev) → PostgreSQL (prod / multi-replica)                       |
 | Scaling   | Stateless replicas behind an nginx load balancer, Redis-backed limits  |
-| ML (soon) | AutoML (FLAML/PyCaret), PyTorch (MLP + LSTM), classical time series    |
+| ML        | Sklearn pipelines, XGBoost, LightGBM, classical estimators (model zoo)|
 
 ## Status
 
@@ -21,9 +21,33 @@ AutoML training across model families → best-model selection → predict**.
 - ✅ **Platform hardening** — authentication, per-user data scoping, rate limiting,
   strict Pydantic validation, file-storage sharding, and a horizontally scalable
   deployment (nginx load balancer + backend replicas + Postgres + Redis).
-- ⬜ **Milestone 3+** — AutoML model training, leaderboard, deep learning, predict + download.
+- ✅ **Milestone 3** — AutoML: async job runner, a model zoo (linear/tree/**XGBoost/
+  LightGBM**/KNN/NB) trained + ranked into a **leaderboard**, eval charts (confusion/ROC/
+  residuals/feature-importance), best-model **download**, and **predict** on new data.
+- ⬜ **Milestone 4+** — deep learning (PyTorch MLP + LSTM), time series, tuning + SHAP.
 
 See the full roadmap in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## AutoML — what you get (Milestone 3)
+
+AutoDS trains **8 candidate models** per run and ranks them into a leaderboard:
+
+| Family    | Classification models                  | Regression models                    |
+| --------- | -------------------------------------- | ------------------------------------ |
+| Linear    | Logistic Regression                    | Linear Regression, Ridge             |
+| Tree      | Random Forest, Extra Trees             | Random Forest, Extra Trees           |
+| Boosting  | Gradient Boosting, XGBoost, LightGBM   | Gradient Boosting, XGBoost, LightGBM |
+| Neighbors | K-Nearest Neighbors                    | K-Nearest Neighbors                  |
+| Bayes     | Gaussian Naive Bayes                   | —                                    |
+
+Each candidate is trained inside a `Pipeline(preprocessor, model)` — numeric columns are
+imputed + scaled, categoricals are imputed + one-hot encoded (up to 50 categories),
+datetimes are expanded into year/month/day/day-of-week features. The full pipeline is
+persisted as a single `.joblib` artifact so predictions on new data require no manual
+feature engineering.
+
+**Evaluation:** classification → accuracy, weighted F1, ROC AUC · regression → RMSE, MAE, R².
+**Eval charts:** confusion matrix, ROC curve, predicted-vs-actual, residuals, feature importance.
 
 ## Documentation
 
@@ -33,7 +57,7 @@ See the full roadmap in [docs/ROADMAP.md](docs/ROADMAP.md).
 | [docs/API.md](docs/API.md)                   | Full REST API reference with examples |
 | [docs/SECURITY.md](docs/SECURITY.md)         | Auth, rate limiting, validation, hardening |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)     | Local, Docker, and horizontal-scaling deploy |
-| [docs/ROADMAP.md](docs/ROADMAP.md)           | Milestone plan |
+| [docs/ROADMAP.md](docs/ROADMAP.md)           | Milestone plan and detailed changelog |
 | [wiki/Home.md](wiki/Home.md)                 | Project wiki (getting started, FAQ, glossary) |
 
 ## Quick start (local dev)
@@ -60,7 +84,9 @@ npm run dev        # http://localhost:5173  (proxies /api to :8000)
 ```
 
 Register an account in the UI, upload a dataset, pick the problem type + target, and
-click **Run pipeline → EDA**.
+click **Run pipeline**. The pipeline runs asynchronously — watch the progress bar as it
+cleans, generates EDA charts, trains models, and builds the leaderboard. When it
+finishes, explore the eval charts, download the best model, or predict on new data.
 
 ## Run the full scalable stack (Docker)
 
@@ -79,16 +105,22 @@ ds/
 ├── backend/            FastAPI app
 │   ├── app/
 │   │   ├── api/        auth, datasets, runs routers
-│   │   ├── pipeline/   ingest, detect, clean, eda (+ train/deep later)
+│   │   │               (leaderboard, model detail/download, predict)
+│   │   ├── pipeline/   ingest, detect, clean, eda, features, model_zoo,
+│   │   │               train, evaluate, registry
+│   │   ├── jobs/       async job runner (ThreadPoolExecutor, DB progress)
 │   │   ├── security.py JWT + bcrypt + current_user dependency
 │   │   ├── storage.py  sharded file storage
 │   │   ├── ratelimit.py slowapi limiter
 │   │   ├── models.py   User, Dataset, Run, ModelResult
+│   │   ├── schemas.py  Pydantic v2 request/response models (strict)
 │   │   └── main.py     app factory, middleware, routers
 │   ├── Dockerfile
-│   └── requirements*.txt
+│   └── requirements.txt
 ├── frontend/           React + Vite SPA
 │   ├── src/            auth, pages, components/Chart (Plotly)
+│   │                   progress polling, leaderboard, eval charts,
+│   │                   model download, predict widget
 │   ├── nginx.frontend.conf   gateway: static SPA + /api load balancing
 │   └── Dockerfile
 ├── docs/               architecture, API, security, deployment, roadmap

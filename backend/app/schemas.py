@@ -158,3 +158,32 @@ class EdaOut(BaseModel):
     summary: dict[str, Any]
     charts: list[ChartSpec]
     report_url: Optional[str] = None
+
+
+# ---- Leaderboard / models ----
+
+
+class ModelResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    model_name: str
+    family: str
+    metrics_json: dict[str, Any]
+    rank: int
+    has_artifact: bool = False
+
+
+class LeaderboardOut(BaseModel):
+    primary_metric: Optional[str] = None
+    best_model_id: Optional[int] = None
+    models: list[ModelResultOut]
+
+
+class ModelResultDetail(ModelResultOut):
+    plots_json: dict[str, Any]
+
+
+class PredictionOut(BaseModel):
+    predictions: list[Any]
+    n: int

@@ -84,3 +84,36 @@ export interface EdaResult {
   charts: ChartSpec[];
   report_url: string | null;
 }
+
+export interface RunStatus {
+  id: number;
+  status: "queued" | "running" | "done" | "error";
+  stage: string;
+  progress: number;
+  message: string | null;
+  best_model_id: number | null;
+}
+
+export interface ModelResult {
+  id: number;
+  model_name: string;
+  family: string;
+  metrics_json: Record<string, number>;
+  rank: number;
+  has_artifact: boolean;
+}
+
+export interface Leaderboard {
+  primary_metric: string | null;
+  best_model_id: number | null;
+  models: ModelResult[];
+}
+
+export interface ModelDetail extends ModelResult {
+  plots_json: Record<string, unknown>;
+}
+
+export interface Prediction {
+  predictions: unknown[];
+  n: number;
+}

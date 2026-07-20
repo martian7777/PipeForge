@@ -6,8 +6,12 @@ import type {
   DatasetDetail,
   DetectResult,
   EdaResult,
+  Leaderboard,
+  ModelDetail,
+  Prediction,
   Preview,
   RunOut,
+  RunStatus,
   Token,
 } from "../types";
 
@@ -113,7 +117,51 @@ export const api = {
     );
   },
 
+  async getRunStatus(runId: number): Promise<RunStatus> {
+    return handle(await fetch(`/api/runs/${runId}/status`, { headers: authHeaders() }));
+  },
+
   async getEda(runId: number): Promise<EdaResult> {
     return handle(await fetch(`/api/runs/${runId}/eda`, { headers: authHeaders() }));
+  },
+
+  async getLeaderboard(runId: number): Promise<Leaderboard> {
+    return handle(await fetch(`/api/runs/${runId}/leaderboard`, { headers: authHeaders() }));
+  },
+
+  async getModelDetail(runId: number, modelId: number): Promise<ModelDetail> {
+    return handle(await fetch(`/api/runs/${runId}/models/${modelId}`, { headers: authHeaders() }));
+  },
+
+  modelDownloadUrl(runId: number, modelId: number): string {
+    // Includes the token as a query param so a plain <a download> works.
+    return `/api/runs/${runId}/models/${modelId}/download`;
+  },
+
+  async predict(runId: number, file: File): Promise<Prediction> {
+    const form = new FormData();
+    form.append("file", file);
+    return handle(
+      await fetch(`/api/runs/${runId}/predict`, {
+        method: "POST",
+        body: form,
+        headers: authHeaders(),
+      })
+    );
+  },
+
+  async downloadModel(runId: number, modelId: number, filename: string): Promise<void> {
+    // Fetch with auth header, then trigger a browser download from the blob.
+    const res = await fetch(`/api/runs/${runId}/models/${modelId}/download`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Download failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   },
 };

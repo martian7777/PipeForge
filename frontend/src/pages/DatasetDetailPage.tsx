@@ -152,10 +152,10 @@ export default function DatasetDetailPage() {
 
         <div style={{ marginTop: 18 }}>
           <button className="btn" onClick={runPipeline} disabled={running}>
-            {running ? "Running…" : "Run pipeline → EDA"}
+            {running ? "Starting…" : "Run pipeline"}
           </button>
           <span className="subtle" style={{ marginLeft: 12 }}>
-            Cleans the data and builds the EDA dashboard. Model training arrives in Milestone 3.
+            Cleans the data, builds EDA, then trains &amp; ranks models (regression/classification).
           </span>
         </div>
       </div>

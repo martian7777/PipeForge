@@ -50,16 +50,27 @@ This means scaling is just "run more backend containers"; no sticky sessions.
 | `storage.py`    | Sharded upload/artifact path resolution |
 | `api/auth.py`   | `register`, `login`, `me` |
 | `api/datasets.py` | upload, list, detail, preview, detect, delete (per-user scoped) |
-| `api/runs.py`   | create run (clean + EDA), status, EDA payload, HTML report |
-| `pipeline/*`    | `ingest`, `detect`, `clean`, `eda` (and `train`, `deep` in later milestones) |
+| `api/runs.py`   | create run (async), status, EDA, leaderboard, model detail/download, predict |
+| `jobs/runner.py` | `ThreadPoolExecutor` background runner; writes stage + progress to DB |
+| `pipeline/ingest.py` | Multi-format loader, encoding/delimiter sniffing, semantic typing |
+| `pipeline/detect.py` | Task type + target column suggestion |
+| `pipeline/clean.py`  | Datetime coercion, dedup, imputation, outlier handling |
+| `pipeline/eda.py`    | Summary stats, Plotly chart payloads, HTML report generation |
+| `pipeline/features.py` | `ColumnTransformer` preprocessor (numeric/categorical/datetime) |
+| `pipeline/model_zoo.py` | Classification & regression candidate model definitions |
+| `pipeline/train.py`  | Model sweep, holdout split, fit/score/rank, feature importance extraction |
+| `pipeline/evaluate.py` | Task-specific metrics (F1/accuracy/AUC, RMSE/MAE/R²) + eval-plot payloads |
+| `pipeline/registry.py` | Best model persistence (joblib) and inference at prediction time |
 
 ## Data model
 
 - **User** `1—N` **Dataset** `1—N` **Run** `1—N` **ModelResult**
 - `Dataset.owner_id` scopes every dataset (and its runs/results) to a user; all queries
   filter by the authenticated user.
-- `Run` stores the task type, target column, cleaning config, EDA payload (JSON), and a
-  pointer to the generated HTML report. Model results (Milestone 3) attach here.
+- `Run` stores the task type, target column, cleaning config, EDA payload (JSON), a
+  pointer to the generated HTML report, and `best_model_id` (the rank-1 model).
+- `ModelResult` stores each trained candidate: name, family, metrics (JSON), eval-plot
+  payloads (JSON), artifact path (joblib), and rank.
 
 ## The pipeline
 
@@ -74,13 +85,27 @@ so stages are independently testable:
 4. **EDA** (`eda.py`) — summary stats + Plotly-friendly chart payloads (histograms, bar
    charts, correlation heatmap, target relationships, time-series line) + a self-contained
    HTML report.
-5. **Train / Evaluate / Registry** — *Milestone 3+*; heavy work moves onto a
-   `ProcessPoolExecutor` job runner with progress polling.
+5. **Features** (`features.py`) — infer feature spec (numeric/categorical/datetime),
+   build a `ColumnTransformer` preprocessor bundled into each sklearn `Pipeline`.
+6. **Train** (`train.py`) — sweep the model zoo, holdout split (80/20, stratified for
+   classification), fit each candidate, collect metrics + eval-plot payloads, rank by
+   the primary metric, extract feature importances.
+7. **Evaluate** (`evaluate.py`) — classification metrics (accuracy, F1, ROC AUC) and
+   regression metrics (RMSE, MAE, R²). Chart payloads: confusion matrix, ROC curve,
+   predicted-vs-actual, residuals, feature importance.
+8. **Registry** (`registry.py`) — persist the best model artifact (joblib with metadata)
+   and load it for predictions on new data at inference time.
+
+Stages 1–4 run for all task types. Stages 5–8 run for supervised tabular tasks
+(classification, regression). The `jobs/runner.py` orchestrates the full sequence in a
+background thread, reporting `stage` + `progress` to the DB for frontend polling.
 
 ## Scaling notes / known limitations
 
 - Table creation uses `create_all` on startup. For production with many replicas, switch
   to **Alembic migrations** run as a one-off job to avoid concurrent-DDL races.
-- Milestone-2 runs execute cleaning + EDA **synchronously** in the request. Milestone 3
-  introduces the async job runner for long training jobs (and a shared queue — e.g.
-  Redis/RQ or Celery — when scaling training across workers).
+- Pipeline runs are **asynchronous** via a `ThreadPoolExecutor` in-process job runner.
+  For production at scale, swap for a shared queue (Redis/RQ or Celery) so training
+  workers scale independently of the API replicas.
+- Only the rank-1 (best) model artifact is persisted to disk; other candidates' weights
+  are discarded after scoring.
