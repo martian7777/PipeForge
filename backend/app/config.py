@@ -60,7 +60,26 @@ class Settings(BaseSettings):
     ratelimit_default: str = "200/minute"
     ratelimit_auth: str = "10/minute"
     ratelimit_upload: str = "30/minute"
+    ratelimit_agent: str = "60/minute"
     ratelimit_storage: str = "memory://"
+
+    # --- Agentic AI layer (pluggable / bring-your-own provider) ---
+    # Provider for the agent layer. "off" disables agents entirely (the classic,
+    # deterministic pipeline is unaffected). Override per-agent model choice lives in
+    # the AgentConfig table (edited from the settings UI); these are the system defaults.
+    llm_provider: str = "off"  # off | anthropic | openai | ollama
+    # Secret — set via PIPEFORGE_LLM_API_KEY. Never sent to the frontend.
+    llm_api_key: str = ""
+    # Base URL for OpenAI-compatible endpoints (Ollama, proxies). Blank = provider default.
+    llm_base_url: str = ""
+    # System-default models per role. Recommended Anthropic Claude tiers.
+    llm_model_orchestrator: str = "claude-opus-4-8"
+    llm_model_analyst: str = "claude-opus-4-8"
+    llm_model_cheap: str = "claude-haiku-4-5"
+    llm_model_chat: str = "claude-sonnet-5"
+    # Cost guardrails.
+    agent_max_steps: int = 12
+    agent_default_mode: str = "advise"  # off | advise | chat | copilot | autopilot
 
     def ensure_dirs(self) -> None:
         """Create all storage directories if they do not exist."""

@@ -15,7 +15,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .api import auth, datasets, runs
+from .api import agents, auth, datasets, runs
 from .config import settings
 from .db import init_db
 from .ratelimit import limiter
@@ -58,6 +58,7 @@ async def security_headers(request: Request, call_next) -> Response:
 app.include_router(auth.router)
 app.include_router(datasets.router)
 app.include_router(runs.router)
+app.include_router(agents.router)
 
 
 @app.get("/api/health")

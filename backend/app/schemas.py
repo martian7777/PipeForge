@@ -187,3 +187,84 @@ class ModelResultDetail(ModelResultOut):
 class PredictionOut(BaseModel):
     predictions: list[Any]
     n: int
+
+
+# ---- Agentic AI layer ----
+
+
+class AgentMode(str, Enum):
+    advise = "advise"
+    chat = "chat"
+    copilot = "copilot"
+    autopilot = "autopilot"
+
+
+class AgentSessionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: AgentMode
+    run_id: Optional[int] = Field(default=None, gt=0)
+    dataset_id: Optional[int] = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _needs_a_subject(self) -> "AgentSessionCreate":
+        if not self.run_id and not self.dataset_id:
+            raise ValueError("provide run_id or dataset_id")
+        return self
+
+
+class AgentMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    role: str
+    agent_name: Optional[str] = None
+    content: Optional[str] = None
+    tool_name: Optional[str] = None
+    status: str
+    created_at: datetime
+
+
+class AgentSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    mode: str
+    status: str
+    current_agent: Optional[str] = None
+    run_id: Optional[int] = None
+    dataset_id: Optional[int] = None
+    created_at: datetime
+
+
+class AgentSessionDetail(AgentSessionOut):
+    error_json: dict[str, Any] = Field(default_factory=dict)
+    messages: list[AgentMessageOut] = Field(default_factory=list)
+
+
+class ChatMessageIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class AgentConfigItem(BaseModel):
+    agent_name: str
+    label: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    enabled: bool = True
+    max_steps: Optional[int] = Field(default=None, ge=1, le=100)
+
+
+class AgentConfigOut(BaseModel):
+    provider: str
+    enabled: bool
+    available_models: dict[str, list[str]]
+    agents: list[AgentConfigItem]
+
+
+class AgentConfigUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agents: list[AgentConfigItem]

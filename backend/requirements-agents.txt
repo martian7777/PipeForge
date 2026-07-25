@@ -1,0 +1,8 @@
+# Agentic AI layer (Milestone: agents). Install alongside requirements.txt.
+#
+# PydanticAI gives every specialist a typed output contract and is provider-agnostic,
+# satisfying the bring-your-own-provider requirement. The provider SDKs are optional
+# extras — install only the one(s) matching PIPEFORGE_LLM_PROVIDER.
+pydantic-ai-slim>=0.0.30
+anthropic>=0.40      # PIPEFORGE_LLM_PROVIDER=anthropic (recommended default)
+openai>=1.40         # PIPEFORGE_LLM_PROVIDER=openai, or ollama (OpenAI-compatible)
