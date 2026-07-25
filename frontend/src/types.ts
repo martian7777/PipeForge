@@ -117,3 +117,48 @@ export interface Prediction {
   predictions: unknown[];
   n: number;
 }
+
+// --- Agentic AI layer ---
+
+export type AgentMode = "advise" | "chat" | "copilot" | "autopilot";
+
+export interface AgentMessage {
+  id: number;
+  role: "system" | "user" | "assistant" | "tool" | "error";
+  agent_name: string | null;
+  content: string | null;
+  tool_name: string | null;
+  status: "running" | "done" | "error";
+  created_at: string;
+}
+
+export interface AgentSession {
+  id: number;
+  mode: string;
+  status: "running" | "awaiting_approval" | "done" | "error";
+  current_agent: string | null;
+  run_id: number | null;
+  dataset_id: number | null;
+  created_at: string;
+}
+
+export interface AgentSessionDetail extends AgentSession {
+  error_json: Record<string, unknown>;
+  messages: AgentMessage[];
+}
+
+export interface AgentConfigItem {
+  agent_name: string;
+  label: string | null;
+  provider: string | null;
+  model: string | null;
+  enabled: boolean;
+  max_steps: number | null;
+}
+
+export interface AgentConfig {
+  provider: string;
+  enabled: boolean;
+  available_models: Record<string, string[]>;
+  agents: AgentConfigItem[];
+}

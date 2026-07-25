@@ -1,10 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api, tokenStore } from "../api/client";
-import type { EdaResult, Leaderboard, ModelDetail, RunStatus } from "../types";
+import type { AgentSessionDetail, EdaResult, Leaderboard, ModelDetail, RunStatus } from "../types";
 
 const Chart = lazy(() => import("../components/Chart"));
 const EvalCharts = lazy(() => import("../components/EvalCharts"));
+const AgentBoard = lazy(() => import("../components/AgentBoard"));
+const AgentPanel = lazy(() => import("../components/AgentPanel"));
 
 function StatTile({ label, value }: { label: string; value: string | number }) {
   return (
@@ -49,7 +51,7 @@ export default function RunEdaPage() {
   const [eda, setEda] = useState<EdaResult | null>(null);
   const [lb, setLb] = useState<Leaderboard | null>(null);
   const [detail, setDetail] = useState<ModelDetail | null>(null);
-  const [tab, setTab] = useState<"leaderboard" | "eda">("leaderboard");
+  const [tab, setTab] = useState<"leaderboard" | "eda" | "agent">("leaderboard");
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
@@ -123,6 +125,9 @@ export default function RunEdaPage() {
           </button>
           <button className={`btn ${tab === "eda" ? "" : "secondary"}`} onClick={() => setTab("eda")}>
             EDA
+          </button>
+          <button className={`btn ${tab === "agent" ? "" : "secondary"}`} onClick={() => setTab("agent")}>
+            Agent
           </button>
           {eda?.report_url && (
             <a className="btn ghost" href={`/api/runs/${runId}/report?token=${tokenStore.get() || ""}`} target="_blank" rel="noreferrer">
@@ -212,6 +217,8 @@ export default function RunEdaPage() {
         </>
       )}
 
+      {tab === "agent" && <AgentTab runId={runId} />}
+
       {tab === "eda" && eda && (
         <>
           <div className="card">
@@ -241,6 +248,116 @@ export default function RunEdaPage() {
         </>
       )}
     </div>
+  );
+}
+
+function AgentTab({ runId }: { runId: number }) {
+  const [mode, setMode] = useState<"advise" | "chat">("advise");
+  const [session, setSession] = useState<AgentSessionDetail | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset when switching sub-mode.
+  const switchMode = (m: "advise" | "chat") => {
+    setMode(m);
+    setSession(null);
+    setError(null);
+  };
+
+  const start = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      // Advise runs the analysis server-side and returns the full trace; chat opens a
+      // ready session that the composer then drives.
+      setSession(await api.createAgentSession({ mode, run_id: runId }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const send = async (text: string) => {
+    if (!session) return;
+    setBusy(true);
+    setError(null);
+    // Optimistic user bubble.
+    setSession({
+      ...session,
+      messages: [
+        ...session.messages,
+        { id: -Date.now(), role: "user", agent_name: null, content: text, tool_name: null, status: "done", created_at: new Date().toISOString() },
+      ],
+    });
+    try {
+      const messages = await api.sendAgentMessage(session.id, text);
+      setSession((s) => (s ? { ...s, messages, status: "done" } : s));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="card">
+        <h2>AI agents</h2>
+        <p className="subtle">
+          Let PipeForge's agents analyse this run. <b>Advise</b> narrates insights and risks;{" "}
+          <b>Chat</b> answers questions about your data and results.
+        </p>
+        <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center" }}>
+          <button
+            className={`btn ${mode === "advise" ? "" : "secondary"}`}
+            onClick={() => switchMode("advise")}
+          >
+            Advise
+          </button>
+          <button
+            className={`btn ${mode === "chat" ? "" : "secondary"}`}
+            onClick={() => switchMode("chat")}
+          >
+            Chat
+          </button>
+          {!session && (
+            <button className="btn" onClick={start} disabled={busy}>
+              {busy ? "Starting…" : mode === "advise" ? "Run analysis" : "Start chat"}
+            </button>
+          )}
+          <Link className="btn ghost" to="/settings/agents" style={{ marginLeft: "auto" }}>
+            Model settings ↗
+          </Link>
+        </div>
+      </div>
+
+      {error && (
+        <div className="card error">
+          {error}
+          {error.toLowerCase().includes("disabled") && (
+            <div className="subtle" style={{ marginTop: 6 }}>
+              Configure a provider in <Link to="/settings/agents">model settings</Link>.
+            </div>
+          )}
+        </div>
+      )}
+
+      {session && (
+        <Suspense fallback={<div className="card spinner">Loading…</div>}>
+          <AgentBoard session={session} />
+          <AgentPanel
+            session={session}
+            busy={busy}
+            onSend={mode === "chat" ? send : undefined}
+          />
+        </Suspense>
+      )}
+
+      {mode === "advise" && busy && !session && (
+        <div className="card spinner">Agents analysing the run…</div>
+      )}
+    </>
   );
 }
 

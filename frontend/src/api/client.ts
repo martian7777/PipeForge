@@ -1,5 +1,9 @@
 // Thin typed wrapper around fetch. All calls go through the Vite /api proxy.
 import type {
+  AgentConfig,
+  AgentConfigItem,
+  AgentMessage,
+  AgentSessionDetail,
   AuthUser,
   CleaningConfig,
   Dataset,
@@ -146,6 +150,49 @@ export const api = {
         method: "POST",
         body: form,
         headers: authHeaders(),
+      })
+    );
+  },
+
+  // --- agents ---
+  async createAgentSession(body: {
+    mode: string;
+    run_id?: number;
+    dataset_id?: number;
+  }): Promise<AgentSessionDetail> {
+    return handle(
+      await fetch("/api/agents/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(body),
+      })
+    );
+  },
+
+  async getAgentSession(id: number): Promise<AgentSessionDetail> {
+    return handle(await fetch(`/api/agents/sessions/${id}`, { headers: authHeaders() }));
+  },
+
+  async sendAgentMessage(id: number, content: string): Promise<AgentMessage[]> {
+    return handle(
+      await fetch(`/api/agents/sessions/${id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ content }),
+      })
+    );
+  },
+
+  async getAgentConfig(): Promise<AgentConfig> {
+    return handle(await fetch("/api/agents/config", { headers: authHeaders() }));
+  },
+
+  async updateAgentConfig(agents: AgentConfigItem[]): Promise<AgentConfig> {
+    return handle(
+      await fetch("/api/agents/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ agents }),
       })
     );
   },

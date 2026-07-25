@@ -51,6 +51,16 @@ def _record_tool_steps(db: Session, session: AgentSession, agent_name: str, resu
                 )
 
 
+def _format_narrative(n: Any) -> str:
+    """Render an EdaNarrative into a readable, sectioned assistant message."""
+    parts = [n.summary]
+    for title, items in (("Insights", n.insights), ("Risks", n.risks), ("Hypotheses", n.hypotheses)):
+        if items:
+            parts.append("\n" + title + ":")
+            parts.extend(f"• {i}" for i in items)
+    return "\n".join(parts)
+
+
 def _deps(db: Session, session: AgentSession) -> AgentDeps:
     user = db.get(User, session.user_id)
     run = db.get(Run, session.run_id) if session.run_id else None
@@ -78,13 +88,14 @@ async def run_advise(db: Session, session: AgentSession) -> None:
             deps=deps,
         )
         _record_tool_steps(db, session, "eda_analyst", result)
+        narrative = result.output
         _add_message(
             db,
             session,
             role="assistant",
             agent_name="eda_analyst",
-            content=result.output.summary,
-            tool_result_json=result.output.model_dump(),
+            content=_format_narrative(narrative),
+            tool_result_json=narrative.model_dump(),
         )
         session.status = "done"
         session.current_agent = None

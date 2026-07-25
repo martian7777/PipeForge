@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "./auth";
 import UploadPage from "./pages/UploadPage";
 import DatasetDetailPage from "./pages/DatasetDetailPage";
 import RunEdaPage from "./pages/RunEdaPage";
+import AgentSettingsPage from "./pages/AgentSettingsPage";
 import LoginPage from "./pages/LoginPage";
 import "./styles.css";
 
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { index: true, element: <UploadPage /> },
       { path: "datasets/:id", element: <DatasetDetailPage /> },
       { path: "runs/:id", element: <RunEdaPage /> },
+      { path: "settings/agents", element: <AgentSettingsPage /> },
     ],
   },
 ]);
