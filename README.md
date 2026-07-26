@@ -158,9 +158,13 @@ npm run dev
 cd backend
 pip install -r requirements-agents.txt        # Install agent dependencies
 
-# Configure your provider environment variables:
+# Configure your provider environment variables (put these in backend/.env to persist them):
 $env:PIPEFORGE_LLM_PROVIDER = "anthropic"      # anthropic | openai | google | ollama | openai_compatible
-$env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."     # e.g. Gemini: provider "google", key "AIza...", model "gemini-2.0-flash"
+$env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."     # console.anthropic.com/settings/keys
+$env:PIPEFORGE_LLM_MODEL_ANALYST = "claude-opus-5"
+
+# Gemini: provider "google", key "AIza..." (aistudio.google.com/apikey), model "gemini-3.6-flash"
+# OpenAI: provider "openai",  key "sk-..."  (platform.openai.com/api-keys), model "gpt-5.6-sol"
 ```
 > 📍 Learn more about setting up per-agent prompts and custom endpoints in **[docs/AGENTS.md](docs/AGENTS.md)**.
 

@@ -124,8 +124,8 @@ class Settings(BaseSettings):
     # OpenAI-compatible gateway). Blank = provider default.
     llm_base_url: str = ""
     # System-default models per role. Recommended Anthropic Claude tiers.
-    llm_model_orchestrator: str = "claude-opus-4-8"
-    llm_model_analyst: str = "claude-opus-4-8"
+    llm_model_orchestrator: str = "claude-opus-5"
+    llm_model_analyst: str = "claude-opus-5"
     llm_model_cheap: str = "claude-haiku-4-5"
     llm_model_chat: str = "claude-sonnet-5"
     # Cost guardrails.

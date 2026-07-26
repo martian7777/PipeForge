@@ -11,6 +11,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.responses import HTMLResponse
 from sqlalchemy import text
 
 from . import oauth
@@ -89,7 +91,10 @@ app = FastAPI(
     lifespan=lifespan,
     # OpenAPI is useful but not something to publish unauthenticated in production;
     # gate it at the ingress if the deployment is internet-facing.
-    docs_url="/api/docs",
+    # The docs pages are served by hand below so they can carry a CSP that permits
+    # their CDN assets; the built-in routes would inherit the deny-all API policy.
+    docs_url=None,
+    redoc_url=None,
     openapi_url="/api/openapi.json",
 )
 
@@ -121,6 +126,42 @@ app.include_router(admin.router)
 app.include_router(datasets.router)
 app.include_router(runs.router)
 app.include_router(agents.router)
+
+
+# --- API documentation ---
+# Swagger UI and ReDoc load their bundles from jsdelivr, which the global HTML policy
+# in SecurityHeadersMiddleware blocks. These two routes carry a narrower exception:
+# the CDN is allowed for scripts/styles/fonts, and connect-src stays 'self' so "Try it
+# out" can call this API but the page cannot phone anywhere else. The middleware uses
+# setdefault, so the header set here is the one that ships.
+_DOCS_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+    "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; "
+    "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net; "
+    "worker-src 'self' blob:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; base-uri 'none'"
+)
+
+
+@app.get("/api/docs", include_in_schema=False)
+def swagger_ui() -> HTMLResponse:
+    page = get_swagger_ui_html(
+        openapi_url=app.openapi_url or "/api/openapi.json",
+        title=f"{settings.app_name} — Swagger UI",
+    )
+    return HTMLResponse(page.body, headers={"Content-Security-Policy": _DOCS_CSP})
+
+
+@app.get("/api/redoc", include_in_schema=False)
+def redoc_ui() -> HTMLResponse:
+    page = get_redoc_html(
+        openapi_url=app.openapi_url or "/api/openapi.json",
+        title=f"{settings.app_name} — ReDoc",
+    )
+    return HTMLResponse(page.body, headers={"Content-Security-Policy": _DOCS_CSP})
 
 
 @app.get("/api/health", tags=["health"])
