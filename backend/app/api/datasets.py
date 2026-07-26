@@ -92,7 +92,7 @@ def upload_dataset(
         request=request,
         actor=user,
         target=f"dataset:{ds.id}",
-        filename=file.filename,
+        upload_filename=file.filename,
         size_bytes=size,
         n_rows=ds.n_rows,
         n_cols=ds.n_cols,
@@ -155,5 +155,5 @@ def delete_dataset(
         request=request,
         actor=user,
         target=f"dataset:{dataset_id}",
-        filename=filename,
+        deleted_filename=filename,
     )
