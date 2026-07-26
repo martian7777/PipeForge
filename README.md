@@ -1,134 +1,197 @@
 <div align="center">
 
-# PipeForge 🛠️
+# 🛠️ PipeForge
 
-**The End-to-End Data Science Pipeline Platform**
+### *The Autonomous, End-to-End Data Science & AutoML Pipeline Platform*
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#)
-[![Milestone: 3](https://img.shields.io/badge/Milestone-3_AutoML-orange)](#)
+[![Build Status](https://img.shields.io/badge/build-passing-2ea44f?style=for-the-badge&logo=github-actions&logoColor=white)](#)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](#)
 
-*Upload data. Let PipeForge do the rest.*
+<p align="center">
+  <b>Upload your raw dataset and let PipeForge automate ETL, Exploratory Analysis, Model Training, Leaderboard Selection, and Deployment predictions.</b>
+</p>
+
+[Key Features](#-key-features) •
+[Pipeline Workflow](#-pipeline-workflow) •
+[Agentic AI Layer](#-agentic-ai-layer) •
+[AutoML Capabilities](#-automl-capabilities--model-matrix) •
+[Tech Stack](#-technology-stack) •
+[Quick Start](#-quick-start) •
+[Docs Hub](#-documentation-hub)
+
+---
 
 </div>
 
----
+## 💡 Overview
 
-## 🎯 The Hook
-Building robust data science pipelines is time-consuming. Data scientists often spend hours writing boilerplate code to clean data, perform EDA, and train baseline models before even getting to the actual problem-solving.
+Building production-grade machine learning pipelines is notoriously time-consuming. Data scientists routinely spend hours on repetitive boilerplate: schema inference, missing value imputation, categorical encoding, feature scaling, model selection, hyperparameter tuning, and metric visualization.
 
-## 🚨 The Problem
-Every new dataset requires a repetitive, manual workflow: 
-- Ingesting and inferring schemas
-- Handling missing values and outliers
-- Encoding categorical variables
-- Training multiple models to establish a baseline
-- Evaluating and comparing model performances
-
-## 💡 The Solution: PipeForge
-PipeForge automates the tedious parts of data science. Upload a data file, tell PipeForge what kind of problem it is (or let it guess), and it runs the full standard data science pipeline for you automatically:
-
-**Ingest → Clean/ETL → EDA → AutoML Training → Best-Model Selection → Predict**
-
-…and, optionally, an **agentic AI layer** where specialist LLM agents reason about each
-step — narrating insights, proposing cleaning/modeling strategies you can approve, or
-driving the whole pipeline end-to-end. See **[Agentic AI Layer](docs/AGENTS.md)**.
+**PipeForge** eliminates this friction. It provides an automated, end-to-end platform that ingests raw tabular datasets and generates fully-evaluated, deployment-ready machine learning artifacts with zero manual effort—enhanced with an optional **Agentic AI Layer** powered by LLMs.
 
 ---
 
-## 🤖 Agentic AI (optional layer)
+## ⚡ Key Features
 
-On top of the deterministic pipeline, PipeForge can run **specialist agents** — a Profiler,
-Cleaning Agent, EDA Analyst, Modeling Strategist, and Evaluation Critic, coordinated by a
-Forge Master. The pipeline functions become the agents' *tools*: agents decide, the tested
-pipeline executes. Four interaction modes:
-
-- **Advise** — narrates insights, risks, and hypotheses over a completed run.
-- **Chat** — conversational Q&A over your data and results.
-- **Copilot** — drives the pipeline, pausing for your approval at each stage.
-- **Autopilot** — runs the whole pipeline unattended.
-
-Provider-pluggable (**Claude / OpenAI / Ollama**) with per-agent model configuration. It's
-purely additive — with no provider configured, the classic pipeline is unchanged. Full
-details and setup in **[docs/AGENTS.md](docs/AGENTS.md)**.
+- ⚡ **Zero-Touch Automated Ingestion & ETL:** Intelligent schema detection, automatic imputation, outlier filtering, datetime feature extraction, and one-hot/label encoding.
+- 🎯 **Automated ML Leaderboards:** Benchmark and evaluate candidate model families per run for both Classification and Regression problems.
+- 🤖 **Agentic AI Engine:** 5 specialized LLM agents (Profiler, Cleaning Agent, EDA Analyst, Modeling Strategist, Evaluation Critic) orchestrated by a **Forge Master**.
+- 📈 **Rich Visual Analytics:** Automatic confusion matrices, ROC/AUC curves, residual plots, feature importances, and SHAP explainability visualizations powered by Plotly.
+- 📦 **Deployable Production Artifacts:** Save complete transformation and model pipelines as single unified `.joblib` bundles for instant inference.
+- 🔒 **Enterprise Scalability & Security:** Stateless FastAPI architecture behind Nginx load balancing, PostgreSQL persistence, Redis queueing, and JWT security.
 
 ---
 
-## ✨ Features & AutoML Capabilities (Milestone 3)
+## 🔄 Pipeline Workflow
 
-PipeForge trains **8 candidate models** per run, automatically handles feature engineering, and ranks them into a competitive leaderboard.
+```
+ ┌─────────────┐     ┌────────────────┐     ┌───────────────┐     ┌─────────────────┐     ┌──────────────────┐
+ │  Data File  │ ──► │ Ingest & Clean │ ──► │ Feature Eng.  │ ──► │ AutoML Training │ ──► │ Leaderboard &    │
+ │ (CSV/Parquet)     │     (ETL)      │     │  & Encoding   │     │  (8 Candidates) │     │ Best Artifact    │
+ └─────────────┘     └────────────────┘     └───────────────┘     └─────────────────┘     └──────────────────┘
+                                                                                                   │
+                                                                                                   ▼
+                                                                                           ┌──────────────────┐
+                                                                                           │  Deploy & Predict│
+                                                                                           └──────────────────┘
+```
 
-| Family | Classification | Regression |
+---
+
+## 🤖 Agentic AI Layer
+
+PipeForge features an optional, pluggable LLM-driven **Agentic AI Layer** layered on top of its deterministic engine. The deterministic pipeline functions act as tools for LLM specialists:
+
+```
+                      ┌──────────────────────────────────┐
+                      │  🤖 FORGE MASTER (Orchestrator)  │
+                      └────────────────┬─────────────────┘
+                                       │
+        ┌───────────────┬──────────────┼───────────────┬───────────────┐
+        ▼               ▼              ▼               ▼               ▼
+ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+ │  Profiler   │ │  Cleaning   │ │ EDA Analyst │ │  Modeling   │ │ Evaluation  │
+ │   Agent     │ │   Agent     │ │   Agent     │ │ Strategist  │ │   Critic    │
+ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+### 💬 Four Interactive AI Modes
+
+| Mode | Behavior & Description |
+| :--- | :--- |
+| **💡 Advise** | Narrates key data insights, detects anomalies, and explains pipeline run decisions post-execution. |
+| **💬 Chat** | Conversational Q&A assistant over your uploaded dataset, pipeline metrics, and model performances. |
+| **🕹️ Copilot** | Drives the pipeline step-by-step, pausing at each phase for user validation and custom decisions. |
+| **🚀 Autopilot** | Autonomous execution where agents evaluate, choose strategies, and execute end-to-end unattended. |
+
+> **Pluggable LLM Backends:** Supports Anthropic **Claude**, **OpenAI**, and local **Ollama** models with custom per-agent configuration.
+> For complete setup and architectural specifications, see **[docs/AGENTS.md](docs/AGENTS.md)**.
+
+---
+
+## 📊 AutoML Capabilities & Model Matrix
+
+PipeForge benchmarks candidate models across standard algorithm families to surface the optimal predictor:
+
+| Algorithm Family | Classification Models | Regression Models |
 | :--- | :--- | :--- |
-| **Linear** | Logistic Regression | Linear Regression, Ridge |
-| **Tree** | Random Forest, Extra Trees | Random Forest, Extra Trees |
-| **Boosting** | Gradient Boosting, XGBoost, LightGBM | Gradient Boosting, XGBoost, LightGBM |
-| **Neighbors** | K-Nearest Neighbors | K-Nearest Neighbors |
-| **Bayes** | Gaussian Naive Bayes | — |
+| **Linear Models** | Logistic Regression | Linear Regression, Ridge |
+| **Tree-Based** | Random Forest, Extra Trees | Random Forest, Extra Trees |
+| **Gradient Boosting** | Gradient Boosting, XGBoost, LightGBM | Gradient Boosting, XGBoost, LightGBM |
+| **Nearest Neighbors** | K-Nearest Neighbors | K-Nearest Neighbors |
+| **Naive Bayes** | Gaussian Naive Bayes | — |
 
-- **Zero-Touch Pipelines:** Numeric columns are imputed and scaled. Categoricals are imputed and one-hot encoded. Datetimes are expanded into robust features.
-- **Persistent Artifacts:** The full pipeline is saved as a single `.joblib` artifact. Predictions on new data require no manual feature engineering.
-- **Rich Evaluations:** Automatic generation of confusion matrices, ROC curves, predicted-vs-actual, residuals, and feature importance charts.
-- **Scalable Architecture:** Designed for horizontal scaling with stateless backend replicas, Postgres, and Redis.
+---
 
 ## 🏗️ Technology Stack
 
-| Component | Stack |
+| Layer | Technologies |
 | :--- | :--- |
-| **Frontend** | React 18, Vite, TypeScript, Plotly |
-| **Backend** | FastAPI, SQLAlchemy 2, Pydantic v2 |
-| **Database** | SQLite (Dev) → PostgreSQL (Prod) |
-| **Machine Learning** | Scikit-Learn, XGBoost, LightGBM, SHAP |
-| **Agentic AI** | PydanticAI, pluggable Claude / OpenAI / Ollama |
-| **Architecture** | Nginx load balancing, JWT stateless auth |
+| **Frontend** | React 18, Vite, TypeScript, Plotly.js |
+| **Backend API** | FastAPI, SQLAlchemy 2, Pydantic v2, Uvicorn |
+| **Data Science & ML** | Scikit-Learn, XGBoost, LightGBM, Pandas, NumPy, SHAP, Joblib |
+| **Agentic Framework** | PydanticAI, Anthropic SDK, OpenAI SDK |
+| **Infrastructure** | PostgreSQL, Redis, Docker & Docker Compose, Nginx |
 
-## 🚀 Quick Start (Local Dev)
+---
 
-### 1. Backend
+## 🚀 Quick Start
+
+### 1. Backend Setup
 
 ```powershell
+# Navigate to backend directory
 cd backend
+
+# Create and activate virtual environment
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Start backend server
 uvicorn app.main:app --reload --port 8000
 ```
-*API docs available at: [http://localhost:8000/docs](http://localhost:8000/docs)*
+> 📍 API Interactive Docs will be accessible at: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 2. Frontend
+### 2. Frontend Setup
 
 ```powershell
+# Navigate to frontend directory
 cd frontend
+
+# Install dependencies and start development server
 npm install
 npm run dev
 ```
-*App running at: [http://localhost:5173](http://localhost:5173) (proxies /api to :8000)*
+> 📍 Web Interface will be live at: [http://localhost:5173](http://localhost:5173)
 
-### 3. (Optional) Enable the agentic AI layer
+### 3. Enabling Agentic AI (Optional)
 
 ```powershell
 cd backend
-pip install -r requirements-agents.txt        # PydanticAI + provider SDK
-$env:PIPEFORGE_LLM_PROVIDER = "anthropic"      # or openai / ollama
+pip install -r requirements-agents.txt        # Install agent dependencies
+
+# Configure your provider environment variables:
+$env:PIPEFORGE_LLM_PROVIDER = "anthropic"      # Options: anthropic | openai | ollama
 $env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."
 ```
-Then open a completed run and use the **Agent** tab. Configure per-agent models at
-`/settings/agents`. Full guide: **[docs/AGENTS.md](docs/AGENTS.md)**.
+> 📍 Learn more about setting up per-agent prompts and custom endpoints in **[docs/AGENTS.md](docs/AGENTS.md)**.
 
-### 🐳 Run via Docker (Full Stack)
+### 🐳 Full-Stack Docker Deployment
 
-Launch 3 backend replicas behind an Nginx gateway with Postgres and Redis:
+Run stateless backend replicas behind Nginx load balancer with PostgreSQL and Redis:
+
 ```bash
 docker compose up --build --scale backend=3
 ```
-*Access the load-balanced platform at [http://localhost:8080](http://localhost:8080).*
+> 📍 Gateway endpoint will be reachable at: [http://localhost:8080](http://localhost:8080)
 
-## 📚 Documentation & Resources
+---
 
-- 🏗️ [Architecture Overview](docs/ARCHITECTURE.md)
-- 🤖 [Agentic AI Layer](docs/AGENTS.md)
-- 🔌 [REST API Reference](docs/API.md)
-- 🔒 [Security & Hardening](docs/SECURITY.md)
-- 🚢 [Deployment Guide](docs/DEPLOYMENT.md)
-- 🗺️ [Project Roadmap](docs/ROADMAP.md)
-- 📖 [Project Wiki](wiki/Home.md)
+## 📚 Documentation Hub
+
+Explore detailed operational, security, and technical documentation:
+
+| Guide | Content Description |
+| :--- | :--- |
+| 🏗️ **[Architecture](docs/ARCHITECTURE.md)** | System design, database schemas, state machines, & scalability. |
+| 🤖 **[Agentic AI Layer](docs/AGENTS.md)** | Agent roles, tool definitions, prompt setup, & interaction modes. |
+| 🔌 **[REST API Reference](docs/API.md)** | Endpoint specs, authentication schema, payload formats, & examples. |
+| 🔒 **[Security & Hardening](docs/SECURITY.md)** | JWT auth mechanisms, CORS rules, input sanitization, & rate limiting. |
+| 🚢 **[Deployment Guide](docs/DEPLOYMENT.md)** | Docker orchestration, environment vars, & production deployment. |
+| 🗺️ **[Project Roadmap](docs/ROADMAP.md)** | Feature milestones, planned integrations, & release history. |
+| 📖 **[Project Wiki](wiki/Home.md)** | Detailed tutorials, user guides, and troubleshooting tips. |
+
+---
+
+<div align="center">
+
+Made with ❤️ for Data Science & AI Automation • Released under the [MIT License](https://opensource.org/licenses/MIT)
+
+</div>
