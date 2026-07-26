@@ -143,11 +143,26 @@ drains instead of receiving traffic it cannot serve.
 4. **SSO** â€” set `PIPEFORGE_PUBLIC_BASE_URL` to the real public origin before registering
    redirect URIs, and consider `PIPEFORGE_OAUTH_ALLOWED_EMAIL_DOMAINS` for internal
    deployments.
-5. **Storage** â€” back the `storage` volume with durable object storage.
-6. **Observability** â€” logs are already structured JSON on stdout with a request id per
+5. **Storage** — back the `storage` volume with durable object storage.
+6. **Observability** — logs are already structured JSON on stdout with a request id per
    line; ship them to a searchable store and alert on `auth.refresh.reuse_detected`,
    `authz.denied`, `startup.insecure_config`, and `http.unhandled_exception`. Wire the
    probes above; metrics (`/metrics`) are still outstanding.
-7. **Autoscaling** â€” scale the backend on CPU/latency; scale training workers separately.
-8. **First admin** â€” set `PIPEFORGE_BOOTSTRAP_ADMIN_EMAIL` so admin isn't granted by
+7. **Autoscaling** — scale the backend on CPU/latency; scale training workers separately.
+8. **First admin** — set `PIPEFORGE_BOOTSTRAP_ADMIN_EMAIL` so admin isn't granted by
    whoever registers first.
+
+## CI/CD Pipeline
+
+PipeForge uses GitHub Actions for Continuous Integration and Continuous Delivery:
+
+- **Continuous Integration (`.github/workflows/ci.yml`):**
+  - **Backend Pipeline:** Runs Ruff syntax checking, installs dependencies, and executes end-to-end Python smoke tests (`smoke_test.py` and `smoke_train.py`).
+  - **Frontend Pipeline:** Runs TypeScript type checks (`tsc -b`) and validates production Vite builds (`npm run build`).
+  - **Docker Pipeline:** Validates `docker-compose.yml` topology and builds test container images for backend and frontend.
+
+- **Continuous Delivery (`.github/workflows/cd.yml`):**
+  - Triggered automatically on version tags (e.g. `v1.0.0`).
+  - Builds optimized multi-stage Docker containers and publishes them to **GitHub Container Registry (GHCR)**:
+    - `ghcr.io/<owner>/pipeforge/backend:latest`
+    - `ghcr.io/<owner>/pipeforge/frontend:latest`

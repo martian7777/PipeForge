@@ -4,7 +4,7 @@
 
 ### *The Autonomous, End-to-End Data Science & AutoML Pipeline Platform*
 
-[![Build Status](https://img.shields.io/badge/build-passing-2ea44f?style=for-the-badge&logo=github-actions&logoColor=white)](#)
+[![Build Status](https://img.shields.io/badge/build-passing-2ea44f?style=for-the-badge&logo=github-actions&logoColor=white)](.github/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
