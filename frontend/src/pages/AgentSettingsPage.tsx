@@ -108,23 +108,25 @@ export default function AgentSettingsPage() {
                         <option value="">(default)</option>
                         {providers.map((p) => (
                           <option key={p} value={p}>
-                            {p}
+                            {config.provider_labels[p] ?? p}
                           </option>
                         ))}
                       </select>
                     </td>
                     <td>
-                      <select
+                      {/* Free-text: any model your provider serves works; the list only suggests. */}
+                      <input
+                        list={`models-${a.agent_name}`}
+                        style={{ width: 170 }}
+                        placeholder="(default)"
                         value={a.model ?? ""}
                         onChange={(e) => update(i, { model: e.target.value || null })}
-                      >
-                        <option value="">(default)</option>
+                      />
+                      <datalist id={`models-${a.agent_name}`}>
                         {models.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
+                          <option key={m} value={m} />
                         ))}
-                      </select>
+                      </datalist>
                     </td>
                     <td>
                       <input

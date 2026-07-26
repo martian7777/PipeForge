@@ -168,5 +168,6 @@ export interface AgentConfig {
   provider: string;
   enabled: boolean;
   available_models: Record<string, string[]>;
+  provider_labels: Record<string, string>;
   agents: AgentConfigItem[];
 }

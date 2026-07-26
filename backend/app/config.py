@@ -64,13 +64,22 @@ class Settings(BaseSettings):
     ratelimit_storage: str = "memory://"
 
     # --- Agentic AI layer (pluggable / bring-your-own provider) ---
-    # Provider for the agent layer. "off" disables agents entirely (the classic,
-    # deterministic pipeline is unaffected). Override per-agent model choice lives in
-    # the AgentConfig table (edited from the settings UI); these are the system defaults.
-    llm_provider: str = "off"  # off | anthropic | openai | ollama
-    # Secret — set via PIPEFORGE_LLM_API_KEY. Never sent to the frontend.
+    # Default provider for the agent layer. "off" disables agents entirely (the classic,
+    # deterministic pipeline is unaffected). Any provider in agents/providers.PROVIDERS
+    # works — anthropic | openai | google | ollama | openai_compatible. Per-agent provider
+    # + model overrides live in the AgentConfig table (edited from the settings UI); these
+    # are the system defaults.
+    llm_provider: str = "off"
+    # Generic secret used for the active provider. Never sent to the frontend.
     llm_api_key: str = ""
-    # Base URL for OpenAI-compatible endpoints (Ollama, proxies). Blank = provider default.
+    # Optional per-provider keys — set these to mix providers across agents. Each falls
+    # back to llm_api_key when blank. (PIPEFORGE_ANTHROPIC_API_KEY, PIPEFORGE_OPENAI_API_KEY,
+    # PIPEFORGE_GOOGLE_API_KEY.)
+    anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    google_api_key: str = ""
+    # Base URL for OpenAI-compatible endpoints (Ollama, vLLM, LM Studio, proxies, or any
+    # OpenAI-compatible gateway). Blank = provider default.
     llm_base_url: str = ""
     # System-default models per role. Recommended Anthropic Claude tiers.
     llm_model_orchestrator: str = "claude-opus-4-8"

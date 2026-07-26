@@ -141,17 +141,31 @@ All via `PIPEFORGE_*` environment variables (or a `.env` in `backend/`). See
 
 | Variable | Default | Notes |
 | -------- | ------- | ----- |
-| `PIPEFORGE_LLM_PROVIDER` | `off` | `off` \| `anthropic` \| `openai` \| `ollama` |
-| `PIPEFORGE_LLM_API_KEY` | — | **Secret.** Server-side only; never sent to the frontend. |
-| `PIPEFORGE_LLM_BASE_URL` | — | For Ollama / OpenAI-compatible proxies. |
-| `PIPEFORGE_LLM_MODEL_ORCHESTRATOR` | `claude-opus-4-8` | Forge Master / analyst-tier default. |
+| `PIPEFORGE_LLM_PROVIDER` | `off` | `off` \| `anthropic` \| `openai` \| `google` \| `ollama` \| `openai_compatible` |
+| `PIPEFORGE_LLM_API_KEY` | — | **Secret.** Generic key for the active provider. Server-side only; never sent to the frontend. |
+| `PIPEFORGE_ANTHROPIC_API_KEY` | — | Optional per-provider key (falls back to `LLM_API_KEY`). |
+| `PIPEFORGE_OPENAI_API_KEY` | — | Optional per-provider key. |
+| `PIPEFORGE_GOOGLE_API_KEY` | — | Optional per-provider key (Gemini). |
+| `PIPEFORGE_LLM_BASE_URL` | — | Required for `openai_compatible`; also used by Ollama / proxies. |
+| `PIPEFORGE_LLM_MODEL_ORCHESTRATOR` | `claude-opus-4-8` | Forge Master. Any model name your provider serves. |
 | `PIPEFORGE_LLM_MODEL_ANALYST` | `claude-opus-4-8` | EDA Analyst / Modeling / Critic. |
 | `PIPEFORGE_LLM_MODEL_CHEAP` | `claude-haiku-4-5` | Profiler / Cleaning. |
 | `PIPEFORGE_LLM_MODEL_CHAT` | `claude-sonnet-5` | Chat. |
 | `PIPEFORGE_AGENT_MAX_STEPS` | `12` | Cost guard. |
 | `PIPEFORGE_AGENT_DEFAULT_MODE` | `advise` | — |
 
-Per-agent overrides set in the settings UI take precedence over these defaults.
+The model-name settings accept **any** string the chosen provider serves (e.g.
+`gemini-2.0-flash`, `gpt-4o`, `claude-opus-4-8`, `llama3.1`). Per-agent provider + model
+overrides set in the settings UI take precedence over these defaults — so you can even run
+different agents on different providers, using the optional per-provider keys above.
+
+### Adding a provider
+
+Providers live in one registry: `PROVIDERS` in
+[`app/agents/providers.py`](../backend/app/agents/providers.py). Each entry is a label, an
+env key setting, a builder branch, and a curated model list. Anthropic, OpenAI, Google
+(Gemini), Ollama, and any OpenAI-compatible gateway (`openai_compatible` + `LLM_BASE_URL`)
+ship out of the box; adding another is a single registry entry plus a builder branch.
 
 ---
 
@@ -173,18 +187,36 @@ Ollama, which is OpenAI-compatible) are listed in `requirements-agents.txt`.
 
 ### 2. Configure a provider
 
+Pick any provider and set its model + key in the environment (or a `.env` in `backend/`):
+
 ```powershell
+# Anthropic (Claude)
 $env:PIPEFORGE_LLM_PROVIDER = "anthropic"
 $env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."
+
+# OpenAI (GPT)
+$env:PIPEFORGE_LLM_PROVIDER = "openai"
+$env:PIPEFORGE_LLM_API_KEY  = "sk-..."
+$env:PIPEFORGE_LLM_MODEL_ANALYST = "gpt-4o"      # set the model names you want
+
+# Google (Gemini)  — pip install "pydantic-ai-slim[google]"
+$env:PIPEFORGE_LLM_PROVIDER = "google"
+$env:PIPEFORGE_LLM_API_KEY  = "AIza..."
+$env:PIPEFORGE_LLM_MODEL_ANALYST = "gemini-2.0-flash"
 ```
 
-For a **local, no-external-service** setup use Ollama:
+For a **local, no-external-service** setup use Ollama, or any OpenAI-compatible gateway
+(vLLM, LM Studio, a proxy) via `openai_compatible`:
 
 ```powershell
 $env:PIPEFORGE_LLM_PROVIDER = "ollama"
 $env:PIPEFORGE_LLM_BASE_URL = "http://localhost:11434/v1"
 # then set each agent's model to a local one (e.g. llama3.1) in /settings/agents
 ```
+
+**Mixing providers:** set the optional per-provider keys (`PIPEFORGE_ANTHROPIC_API_KEY`,
+`PIPEFORGE_OPENAI_API_KEY`, `PIPEFORGE_GOOGLE_API_KEY`) and choose a provider + model per
+agent at `/settings/agents` — e.g. Gemini for cheap sub-tasks, Claude for the Critic.
 
 Leaving `PIPEFORGE_LLM_PROVIDER` unset (`off`) keeps the classic pipeline fully working;
 the Agent tab shows a "configure a provider" prompt.

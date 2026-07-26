@@ -88,7 +88,7 @@ PipeForge features an optional, pluggable LLM-driven **Agentic AI Layer** layere
 | **🕹️ Copilot** | Drives the pipeline step-by-step, pausing at each phase for user validation and custom decisions. |
 | **🚀 Autopilot** | Autonomous execution where agents evaluate, choose strategies, and execute end-to-end unattended. |
 
-> **Pluggable LLM Backends:** Supports Anthropic **Claude**, **OpenAI**, and local **Ollama** models with custom per-agent configuration.
+> **Pluggable LLM Backends:** Supports Anthropic **Claude**, **OpenAI (GPT)**, **Google (Gemini)**, local **Ollama**, and any **OpenAI-compatible** gateway — set a provider, model, and key in `.env`, or configure a different provider/model per agent. Adding another provider is a single registry entry.
 > For complete setup and architectural specifications, see **[docs/AGENTS.md](docs/AGENTS.md)**.
 
 ---
@@ -114,7 +114,7 @@ PipeForge benchmarks candidate models across standard algorithm families to surf
 | **Frontend** | React 18, Vite, TypeScript, Plotly.js |
 | **Backend API** | FastAPI, SQLAlchemy 2, Pydantic v2, Uvicorn |
 | **Data Science & ML** | Scikit-Learn, XGBoost, LightGBM, Pandas, NumPy, SHAP, Joblib |
-| **Agentic Framework** | PydanticAI, Anthropic SDK, OpenAI SDK |
+| **Agentic Framework** | PydanticAI · pluggable Claude / GPT / Gemini / Ollama |
 | **Infrastructure** | PostgreSQL, Redis, Docker & Docker Compose, Nginx |
 
 ---
@@ -158,8 +158,8 @@ cd backend
 pip install -r requirements-agents.txt        # Install agent dependencies
 
 # Configure your provider environment variables:
-$env:PIPEFORGE_LLM_PROVIDER = "anthropic"      # Options: anthropic | openai | ollama
-$env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."
+$env:PIPEFORGE_LLM_PROVIDER = "anthropic"      # anthropic | openai | google | ollama | openai_compatible
+$env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."     # e.g. Gemini: provider "google", key "AIza...", model "gemini-2.0-flash"
 ```
 > 📍 Learn more about setting up per-agent prompts and custom endpoints in **[docs/AGENTS.md](docs/AGENTS.md)**.
 

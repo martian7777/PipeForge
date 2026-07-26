@@ -278,6 +278,7 @@ class AgentConfigOut(BaseModel):
     provider: str
     enabled: bool
     available_models: dict[str, list[str]]
+    provider_labels: dict[str, str] = Field(default_factory=dict)
     agents: list[AgentConfigItem]
 
 

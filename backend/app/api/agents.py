@@ -214,6 +214,7 @@ def get_config(db: Session = Depends(get_db), user: User = Depends(current_user)
         provider=settings.llm_provider,
         enabled=providers.is_enabled(),
         available_models=providers.available_models(),
+        provider_labels=providers.provider_labels(),
         agents=items,
     )
 

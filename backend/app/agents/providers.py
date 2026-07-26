@@ -79,37 +79,97 @@ def _resolve(agent_name: str, user: "Optional[User]", db: "Optional[Session]") -
     return provider, model_id
 
 
+# The provider registry. To add a provider, add one entry here (key env field, a builder,
+# and a curated model list) — nothing else in the codebase needs to change.
+PROVIDERS: dict[str, dict[str, Any]] = {
+    "anthropic": {
+        "label": "Anthropic (Claude)",
+        "key_setting": "anthropic_api_key",
+        "models": ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"],
+    },
+    "openai": {
+        "label": "OpenAI (GPT)",
+        "key_setting": "openai_api_key",
+        "models": ["gpt-4o", "gpt-4o-mini", "o4-mini"],
+    },
+    "google": {
+        "label": "Google (Gemini)",
+        "key_setting": "google_api_key",
+        "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    },
+    "ollama": {
+        "label": "Ollama (local)",
+        "key_setting": None,  # local; key optional
+        "models": ["llama3.1", "mistral", "qwen2.5"],
+    },
+    "openai_compatible": {
+        "label": "OpenAI-compatible (custom base URL)",
+        "key_setting": None,
+        "models": [],  # any model name your gateway serves
+    },
+}
+
+
+def _key_for(provider: str) -> str:
+    """Resolve a provider's API key: its dedicated setting, else the generic fallback."""
+    key_setting = PROVIDERS.get(provider, {}).get("key_setting")
+    specific = getattr(settings, key_setting) if key_setting else ""
+    return specific or settings.llm_api_key
+
+
 def _build_model(provider: str, model_id: str) -> Any:
     """Construct a PydanticAI model instance for ``provider``/``model_id``."""
     if provider == "off":
         raise ProviderError(
-            "The agent layer is disabled. Set PIPEFORGE_LLM_PROVIDER to "
-            "anthropic, openai, or ollama (and PIPEFORGE_LLM_API_KEY)."
+            "The agent layer is disabled. Set PIPEFORGE_LLM_PROVIDER to one of: "
+            + ", ".join(k for k in PROVIDERS)
+            + " (and the matching API key)."
         )
+    if provider not in PROVIDERS:
+        raise ProviderError(f"Unknown LLM provider: {provider!r}. Known: {', '.join(PROVIDERS)}")
 
     if provider == "anthropic":
-        if not settings.llm_api_key:
-            raise ProviderError("PIPEFORGE_LLM_API_KEY is required for the anthropic provider")
         from pydantic_ai.models.anthropic import AnthropicModel
         from pydantic_ai.providers.anthropic import AnthropicProvider
 
-        return AnthropicModel(model_id, provider=AnthropicProvider(api_key=settings.llm_api_key))
+        key = _key_for(provider) or _require_key(provider)
+        return AnthropicModel(model_id, provider=AnthropicProvider(api_key=key))
 
-    if provider in ("openai", "ollama"):
-        from pydantic_ai.models.openai import OpenAIModel
-        from pydantic_ai.providers.openai import OpenAIProvider
+    if provider == "google":
+        # google-genai SDK (GoogleModel/GoogleProvider). Install the pydantic-ai google extra.
+        try:
+            from pydantic_ai.models.google import GoogleModel
+            from pydantic_ai.providers.google import GoogleProvider
+        except ImportError as exc:  # pragma: no cover
+            raise ProviderError(
+                "Google/Gemini support needs the pydantic-ai google extra: "
+                "pip install 'pydantic-ai-slim[google]'"
+            ) from exc
+        key = _key_for(provider) or _require_key(provider)
+        return GoogleModel(model_id, provider=GoogleProvider(api_key=key))
 
-        if provider == "ollama":
-            base_url = settings.llm_base_url or "http://localhost:11434/v1"
-            api_key = settings.llm_api_key or "ollama"  # Ollama ignores the key but the SDK wants one
-        else:
-            base_url = settings.llm_base_url or None
-            if not settings.llm_api_key:
-                raise ProviderError("PIPEFORGE_LLM_API_KEY is required for the openai provider")
-            api_key = settings.llm_api_key
-        return OpenAIModel(model_id, provider=OpenAIProvider(api_key=api_key, base_url=base_url))
+    # openai, ollama, and openai_compatible all use the OpenAI-compatible client.
+    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai.providers.openai import OpenAIProvider
 
-    raise ProviderError(f"Unknown LLM provider: {provider!r}")
+    if provider == "ollama":
+        base_url = settings.llm_base_url or "http://localhost:11434/v1"
+        api_key = _key_for(provider) or "ollama"  # Ollama ignores the key but the SDK wants one
+    elif provider == "openai_compatible":
+        base_url = settings.llm_base_url
+        if not base_url:
+            raise ProviderError("PIPEFORGE_LLM_BASE_URL is required for the openai_compatible provider")
+        api_key = _key_for(provider) or "not-needed"
+    else:  # openai
+        base_url = settings.llm_base_url or None
+        api_key = _key_for(provider) or _require_key(provider)
+    return OpenAIModel(model_id, provider=OpenAIProvider(api_key=api_key, base_url=base_url))
+
+
+def _require_key(provider: str) -> str:
+    key_setting = PROVIDERS.get(provider, {}).get("key_setting")
+    var = f"PIPEFORGE_{key_setting.upper()}" if key_setting else "PIPEFORGE_LLM_API_KEY"
+    raise ProviderError(f"An API key is required for the {provider} provider — set {var} (or PIPEFORGE_LLM_API_KEY).")
 
 
 def get_model(
@@ -123,12 +183,14 @@ def get_model(
 
 
 def available_models() -> dict[str, list[str]]:
-    """Curated per-provider model lists for the settings dropdown."""
-    return {
-        "anthropic": ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"],
-        "openai": ["gpt-4o", "gpt-4o-mini", "o4-mini"],
-        "ollama": ["llama3.1", "mistral", "qwen2.5"],
-    }
+    """Curated per-provider model lists for the settings dropdown. Any model name your
+    provider serves also works — the dropdown allows a free-text entry too."""
+    return {name: list(p["models"]) for name, p in PROVIDERS.items()}
+
+
+def provider_labels() -> dict[str, str]:
+    """Human-friendly provider names for the settings UI."""
+    return {name: p["label"] for name, p in PROVIDERS.items()}
 
 
 def is_enabled() -> bool:
