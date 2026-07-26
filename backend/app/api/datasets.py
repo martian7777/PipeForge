@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -40,6 +40,7 @@ def _get_owned_dataset_or_404(db: Session, dataset_id: int, user: User) -> Datas
 @limiter.limit(settings.ratelimit_upload)
 def upload_dataset(
     request: Request,
+    response: Response,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: User = Depends(current_user),

@@ -7,7 +7,7 @@ pipeline is unaffected and these endpoints report 503.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -170,6 +170,7 @@ def approve(
 @limiter.limit("30/minute")
 async def send_message(
     request: Request,
+    response: Response,
     session_id: int,
     body: ChatMessageIn,
     db: Session = Depends(get_db),
