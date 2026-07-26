@@ -15,9 +15,34 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
-from . import evaluate, features, model_zoo
+from . import evaluate, explain, features, model_zoo
 
 ProgressCb = Callable[[float, str], None]
+
+
+def _tune(pipe: Pipeline, grid: dict[str, list], X, y, task_type: str) -> tuple[Pipeline, dict[str, Any]]:
+    """Randomized search over a per-model param grid; return (best_pipeline, best_params)."""
+    from sklearn.model_selection import RandomizedSearchCV
+
+    # Grid keys are bare model params (e.g. "n_estimators"); route them to the model step.
+    distributions = {f"model__{k}": v for k, v in grid.items() if v}
+    if not distributions:
+        return pipe, {}
+    n_iter = min(10, _grid_size(distributions))  # cap the search; small grids run exhaustively
+    scoring = "f1_weighted" if task_type == "classification" else "neg_root_mean_squared_error"
+    search = RandomizedSearchCV(
+        pipe, distributions, n_iter=n_iter, cv=3, scoring=scoring, random_state=42, n_jobs=-1
+    )
+    search.fit(X, y)
+    best_params = {k.replace("model__", ""): v for k, v in search.best_params_.items()}
+    return search.best_estimator_, best_params
+
+
+def _grid_size(distributions: dict[str, list]) -> int:
+    size = 1
+    for v in distributions.values():
+        size *= max(1, len(v))
+    return max(1, size)
 
 
 @dataclass
@@ -73,8 +98,15 @@ def train_models(
     progress_cb: Optional[ProgressCb] = None,
     test_size: float = 0.2,
     model_names: Optional[list[str]] = None,
+    hyperparameters: Optional[dict[str, dict[str, list]]] = None,
+    tune: bool = False,
 ) -> TrainingResult:
-    """Sweep the model zoo (or the ``model_names`` subset, if given) and rank the result."""
+    """Sweep the model zoo (or the ``model_names`` subset, if given) and rank the result.
+
+    When ``tune`` is set, each candidate with a grid in ``hyperparameters`` (keyed by model
+    name, param -> candidate values) is fit through a small randomized search and the best
+    estimator is kept; the chosen params land in ``plots['tuned_params']``.
+    """
     if target not in df.columns:
         raise ValueError(f"Target column '{target}' not in data")
 
@@ -114,6 +146,11 @@ def train_models(
         pre = features.build_preprocessor(spec)
         pipe = Pipeline([("pre", pre), ("model", cand.factory())])
         try:
+            grid = (hyperparameters or {}).get(cand.name) if tune else None
+            tuned_params: Optional[dict[str, Any]] = None
+            if grid:
+                pipe, tuned_params = _tune(pipe, grid, X_train, y_train, task_type)
+
             pipe.fit(X_train, y_train)
             y_pred = pipe.predict(X_test)
             if task_type == "classification":
@@ -126,6 +163,11 @@ def train_models(
             fi = _feature_importance(pipe)
             if fi:
                 plots["feature_importance"] = fi
+            if tuned_params:
+                plots["tuned_params"] = tuned_params
+            shap = explain.shap_summary(pipe, X_test.head(100))
+            if shap:
+                plots["shap"] = shap
             trained.append(TrainedModel(cand.name, cand.family, metrics, plots, pipe))
         except Exception as exc:  # noqa: BLE001 - a single model failing shouldn't kill the run
             trained.append(

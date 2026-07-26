@@ -194,9 +194,11 @@ async def _advance(db: Session, session: AgentSession) -> None:
     deps = _deps(db, session, run)
     critic = build_critic(providers.get_model("critic", deps.user, db))
     verdict = (await critic.run("Interpret the leaderboard and recommend a model.", deps=deps)).output
-    warn = "\n".join(f"⚠ {w}" for w in verdict.warnings)
+    extra = "\n".join(f"⚠ {w}" for w in verdict.warnings)
+    if verdict.key_drivers:
+        extra += ("\n" if extra else "") + "Key drivers: " + ", ".join(verdict.key_drivers)
     _msg(db, session, role="assistant", agent_name="critic",
-         content=(verdict.justification + ("\n" + warn if warn else "")),
+         content=(verdict.justification + ("\n" + extra if extra else "")),
          tool_result_json=verdict.model_dump())
     return _finish(db, session, "Run complete.")
 
@@ -220,6 +222,8 @@ def _execute_training(
         cleaned,
         model_names=plan.get("selected_models") or None,
         test_size=float(plan.get("test_size", 0.2)),
+        hyperparameters=plan.get("hyperparameters") or None,
+        tune=bool(plan.get("tune")),
     )
     _msg(db, session, role="tool", agent_name="modeling", tool_name="run_training",
          tool_result_json={"best": result})

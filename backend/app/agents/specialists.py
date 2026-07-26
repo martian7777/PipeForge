@@ -78,14 +78,21 @@ CleaningPlan — the user will review it before it runs.
 MODELING_PROMPT = """\
 You are the Modeling Strategist. Given the profile and EDA, choose a sensible subset of
 candidate models to train (use list_candidate_models for the task type) and a test split
-size. Favour a small, diverse set over the whole zoo when the dataset is small. Return a
-ModelingPlan — the user will review it before training runs.
+size. Favour a small, diverse set over the whole zoo when the dataset is small.
+
+You may also propose hyperparameter tuning: set tune=true and provide, per selected model
+name, a small grid of candidate values (e.g. {"Random Forest": {"n_estimators": [100, 300],
+"max_depth": [null, 10]}}). Keep grids small — a few values per parameter. Return a
+ModelingPlan; the user reviews it before training runs.
 """
 
 CRITIC_PROMPT = """\
 You are the Evaluation Critic. Read the leaderboard and model details, then recommend the
-best model by id, list warnings (overfitting, leakage, metric that looks too good), and
-justify the recommendation. Ground every claim in the metrics you read.
+best model by id and justify it. Use read_feature_importance on the top model to check its
+explanation: a single feature dominating often signals target leakage; incoherent drivers
+signal an untrustworthy model. Populate key_drivers with the model's top features and list
+warnings (overfitting, leakage, a metric that looks too good). Ground every claim in what
+you read.
 """
 
 
@@ -128,6 +135,6 @@ def build_critic(model: Any) -> Agent[AgentDeps, EvalVerdict]:
         deps_type=AgentDeps,
         output_type=EvalVerdict,
         system_prompt=CRITIC_PROMPT,
-        tools=[tools.read_leaderboard, tools.read_model_detail],
+        tools=[tools.read_leaderboard, tools.read_model_detail, tools.read_feature_importance],
         name="critic",
     )

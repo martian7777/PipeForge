@@ -109,16 +109,34 @@ def execute_run(run_id: int) -> None:
         db.close()
 
 
-def train_and_persist(db, run: Run, df, *, model_names=None, test_size: float = 0.2, progress_cb=None) -> str:
-    """Train (optionally a model subset), persist the leaderboard + best artifact.
+def train_and_persist(
+    db,
+    run: Run,
+    df,
+    *,
+    model_names=None,
+    test_size: float = 0.2,
+    hyperparameters=None,
+    tune: bool = False,
+    progress_cb=None,
+) -> str:
+    """Train (optionally a model subset, optionally tuned), persist the leaderboard + best.
 
-    Shared by the classic runner and the Copilot orchestrator. Sets ``run.best_model_id``
-    and returns a human-readable "Best model: …" summary; the caller owns run status.
+    Shared by the classic runner and the Copilot/Autopilot orchestrator. Sets
+    ``run.best_model_id`` and returns a human-readable "Best model: …" summary; the caller
+    owns run status.
     """
     from ..pipeline import registry, train  # lazy: ML stack loaded only when training
 
     result = train.train_models(
-        df, run.target_col, run.task_type, progress_cb, test_size=test_size, model_names=model_names
+        df,
+        run.target_col,
+        run.task_type,
+        progress_cb,
+        test_size=test_size,
+        model_names=model_names,
+        hyperparameters=hyperparameters,
+        tune=tune,
     )
     feature_columns = (
         result.feature_spec["numeric"]

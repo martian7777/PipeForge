@@ -119,7 +119,29 @@ def read_model_detail(ctx: RunContext[AgentDeps], model_id: int) -> dict[str, An
         "family": r.family,
         "metrics": r.metrics_json,
         "plots": list((r.plots_json or {}).keys()),
+        "tuned_params": (r.plots_json or {}).get("tuned_params"),
         "rank": r.rank,
+    }
+
+
+def read_feature_importance(ctx: RunContext[AgentDeps], model_id: int) -> dict[str, Any]:
+    """Explainability for a model: its feature attributions (SHAP if present, else
+    coefficient/importance) and the top drivers. A pure DB read — no ML stack needed."""
+    from ..models import ModelResult
+    from ..pipeline import explain
+
+    r = ctx.deps.db.get(ModelResult, model_id)
+    if r is None or (ctx.deps.run is not None and r.run_id != ctx.deps.run.id):
+        return {"error": f"model {model_id} not found for this run"}
+    plots = r.plots_json or {}
+    attribution = plots.get("shap") or plots.get("feature_importance") or {}
+    return {
+        "model_id": r.id,
+        "method": attribution.get("method", "importance" if "feature_importance" in plots else "none"),
+        "features": attribution.get("features", []),
+        "importance": attribution.get("importance", []),
+        "top_drivers": explain.top_drivers(plots),
+        "tuned_params": plots.get("tuned_params"),
     }
 
 
@@ -130,6 +152,7 @@ READ_ONLY_TOOLS = [
     query_eda_stats,
     read_leaderboard,
     read_model_detail,
+    read_feature_importance,
 ]
 
 __all__ = [
@@ -139,5 +162,6 @@ __all__ = [
     "list_candidate_models",
     "read_leaderboard",
     "read_model_detail",
+    "read_feature_importance",
     "READ_ONLY_TOOLS",
 ]

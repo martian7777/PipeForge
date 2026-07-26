@@ -6,6 +6,8 @@ frontend renders them directly.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -52,17 +54,23 @@ class EdaNarrative(BaseModel):
 
 
 class ModelingPlan(BaseModel):
-    """Modeling Strategist output: which models to try and how to split."""
+    """Modeling Strategist output: which models to try, how to split, and (Phase 4) how
+    to tune. ``hyperparameters`` maps a model name to param → candidate values; when
+    ``tune`` is set, training runs a randomized search over those grids."""
 
     selected_models: list[str] = Field(default_factory=list)
     test_size: float = Field(default=0.2, ge=0.05, le=0.5)
     cv_strategy: str = "holdout"
+    tune: bool = False
+    hyperparameters: dict[str, dict[str, list[Any]]] = Field(default_factory=dict)
     rationale: str
 
 
 class EvalVerdict(BaseModel):
-    """Evaluation Critic output: model recommendation with caveats."""
+    """Evaluation Critic output: model recommendation, caveats, and the features that
+    drive the recommended model (read from its explanation)."""
 
     recommended_model_id: int | None = None
     warnings: list[str] = Field(default_factory=list)
+    key_drivers: list[str] = Field(default_factory=list)
     justification: str

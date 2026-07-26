@@ -67,6 +67,23 @@ export default function ProposalGate({
               onChange={(e) => set("test_size", Number(e.target.value))}
             />
           </Row>
+          <Row label="Tune hyperparameters">
+            <input type="checkbox" checked={!!cfg.tune} onChange={(e) => set("tune", e.target.checked)} />
+          </Row>
+          {!!cfg.tune && cfg.hyperparameters ? (
+            <div className="subtle" style={{ fontSize: 12 }}>
+              {Object.entries(cfg.hyperparameters as Record<string, Record<string, unknown[]>>).map(
+                ([model, grid]) => (
+                  <div key={model}>
+                    <b>{model}</b>:{" "}
+                    {Object.entries(grid)
+                      .map(([p, vals]) => `${p}=[${(vals as unknown[]).join(", ")}]`)
+                      .join("  ·  ")}
+                  </div>
+                )
+              )}
+            </div>
+          ) : null}
         </div>
       )}
 
