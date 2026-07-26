@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -53,15 +53,15 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
-    password_hash: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    full_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     role: Mapped[str] = mapped_column(String(16), default=Role.USER, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     # Bumped on password change / "sign out everywhere" / role change. Access tokens
     # carrying an older value are rejected, which revokes them without a denylist.
     token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     datasets: Mapped[list["Dataset"]] = relationship(
@@ -86,9 +86,9 @@ class OAuthIdentity(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     provider: Mapped[str] = mapped_column(String(32))  # google|github|microsoft
     subject: Mapped[str] = mapped_column(String(256))
-    email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="identities")
 
@@ -112,12 +112,12 @@ class RefreshToken(Base):
     family_id: Mapped[str] = mapped_column(String(64), index=True)
     issued_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Why it was revoked: rotated | logout | logout_all | reuse_detected | admin
-    revoked_reason: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    replaced_by_jti: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    client_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    revoked_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    replaced_by_jti: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     @property
     def is_active(self) -> bool:
@@ -139,13 +139,13 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     event: Mapped[str] = mapped_column(String(64), index=True)  # e.g. auth.login.success
-    actor_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    actor_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
-    target: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    actor_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actor_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    target: Mapped[str | None] = mapped_column(String(256), nullable=True)
     outcome: Mapped[str] = mapped_column(String(16), default="success")  # success|failure
-    client_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     detail_json: Mapped[dict[str, Any]] = mapped_column("detail", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, index=True)
 
@@ -178,17 +178,17 @@ class Run(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     dataset_id: Mapped[int] = mapped_column(ForeignKey("datasets.id"))
     task_type: Mapped[str] = mapped_column(String(32))  # regression|classification|timeseries|clustering
-    target_col: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    target_col: Mapped[str | None] = mapped_column(String(512), nullable=True)
     config_json: Mapped[dict[str, Any]] = mapped_column("config", JSON, default=dict)
 
     status: Mapped[str] = mapped_column(String(32), default="queued")  # queued|running|done|error
     stage: Mapped[str] = mapped_column(String(64), default="queued")
     progress: Mapped[float] = mapped_column(Float, default=0.0)  # 0..100
-    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    best_model_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    best_model_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     eda_json: Mapped[dict[str, Any]] = mapped_column("eda", JSON, default=dict)
-    report_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    report_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
@@ -209,7 +209,7 @@ class ModelResult(Base):
     family: Mapped[str] = mapped_column(String(64))  # linear|tree|boosting|deep|classical_ts
     metrics_json: Mapped[dict[str, Any]] = mapped_column("metrics", JSON, default=dict)
     plots_json: Mapped[dict[str, Any]] = mapped_column("plots", JSON, default=dict)
-    artifact_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    artifact_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     rank: Mapped[int] = mapped_column(Integer, default=0)
 
     run: Mapped["Run"] = relationship(back_populates="results")
@@ -227,11 +227,11 @@ class AgentSession(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    dataset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("datasets.id"), nullable=True)
-    run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("runs.id"), nullable=True)
+    dataset_id: Mapped[int | None] = mapped_column(ForeignKey("datasets.id"), nullable=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("runs.id"), nullable=True)
     mode: Mapped[str] = mapped_column(String(32), default="advise")  # advise|chat|copilot|autopilot
     status: Mapped[str] = mapped_column(String(32), default="running")  # running|awaiting_approval|done|error
-    current_agent: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # drives the live UI
+    current_agent: Mapped[str | None] = mapped_column(String(64), nullable=True)  # drives the live UI
     error_json: Mapped[dict[str, Any]] = mapped_column("error", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
@@ -252,9 +252,9 @@ class AgentMessage(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[int] = mapped_column(ForeignKey("agent_sessions.id"), index=True)
     role: Mapped[str] = mapped_column(String(16))  # system|user|assistant|tool|error
-    agent_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    tool_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    agent_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tool_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tool_args_json: Mapped[dict[str, Any]] = mapped_column("tool_args", JSON, default=dict)
     tool_result_json: Mapped[dict[str, Any]] = mapped_column("tool_result", JSON, default=dict)
     status: Mapped[str] = mapped_column(String(16), default="done")  # running|done|error
@@ -273,7 +273,7 @@ class AgentProposal(Base):
     stage: Mapped[str] = mapped_column(String(32))  # cleaning|modeling|...
     proposed_config_json: Mapped[dict[str, Any]] = mapped_column("proposed_config", JSON, default=dict)
     status: Mapped[str] = mapped_column(String(16), default="pending")  # pending|approved|rejected|edited
-    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class AgentConfig(Base):
@@ -284,7 +284,7 @@ class AgentConfig(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     agent_name: Mapped[str] = mapped_column(String(64))
-    provider: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    model: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    max_steps: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    max_steps: Mapped[int | None] = mapped_column(Integer, nullable=True)

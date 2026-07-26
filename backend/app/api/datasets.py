@@ -68,7 +68,7 @@ def upload_dataset(
 
     try:
         df = ingest.load_dataframe(dest, file_format)
-    except Exception as exc:  # noqa: BLE001 - surface parse errors to the client
+    except Exception as exc:  # surface parse errors to the client
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=f"Failed to parse file: {exc}") from exc
 

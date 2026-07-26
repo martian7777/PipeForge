@@ -197,7 +197,7 @@ async def predict(
         tmp_path = tf.name
     try:
         df = ingest.load_dataframe(tmp_path, fmt)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Failed to parse file: {exc}") from exc
     finally:
         Path(tmp_path).unlink(missing_ok=True)

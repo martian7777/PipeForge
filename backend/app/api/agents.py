@@ -183,7 +183,7 @@ async def send_message(
         await agent_session.run_chat_turn(db, session, body.content)
     except ProviderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001 - already recorded on the session; report it
+    except Exception as exc:  # already recorded on the session; report it
         raise HTTPException(status_code=502, detail=f"Agent error: {exc}") from exc
     db.refresh(session)
     return list(session.messages)

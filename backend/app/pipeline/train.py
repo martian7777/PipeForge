@@ -8,7 +8,7 @@ payloads, and ranks the results into a leaderboard. Mirrors what an AutoML
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -53,29 +53,29 @@ class TrainedModel:
     plots: dict[str, Any]
     pipeline: Pipeline
     rank: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
 class TrainingResult:
     models: list[TrainedModel]
-    classes: Optional[list[str]]
+    classes: list[str] | None
     primary_metric: str
     n_train: int
     n_test: int
     feature_spec: dict[str, list[str]] = field(default_factory=dict)
 
 
-def _feature_importance(pipeline: Pipeline, top: int = 20) -> Optional[dict[str, Any]]:
+def _feature_importance(pipeline: Pipeline, top: int = 20) -> dict[str, Any] | None:
     """Extract top feature importances / coefficients if the model exposes them."""
     try:
         pre = pipeline.named_steps["pre"]
         model = pipeline.named_steps["model"]
         names = list(pre.get_feature_names_out())
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
-    values: Optional[np.ndarray] = None
+    values: np.ndarray | None = None
     if hasattr(model, "feature_importances_"):
         values = np.asarray(model.feature_importances_, dtype=float)
     elif hasattr(model, "coef_"):
@@ -95,10 +95,10 @@ def train_models(
     df: pd.DataFrame,
     target: str,
     task_type: str,
-    progress_cb: Optional[ProgressCb] = None,
+    progress_cb: ProgressCb | None = None,
     test_size: float = 0.2,
-    model_names: Optional[list[str]] = None,
-    hyperparameters: Optional[dict[str, dict[str, list]]] = None,
+    model_names: list[str] | None = None,
+    hyperparameters: dict[str, dict[str, list]] | None = None,
     tune: bool = False,
 ) -> TrainingResult:
     """Sweep the model zoo (or the ``model_names`` subset, if given) and rank the result.
@@ -147,7 +147,7 @@ def train_models(
         pipe = Pipeline([("pre", pre), ("model", cand.factory())])
         try:
             grid = (hyperparameters or {}).get(cand.name) if tune else None
-            tuned_params: Optional[dict[str, Any]] = None
+            tuned_params: dict[str, Any] | None = None
             if grid:
                 pipe, tuned_params = _tune(pipe, grid, X_train, y_train, task_type)
 

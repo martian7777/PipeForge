@@ -91,6 +91,6 @@ def record(
             )
         )
         db.commit()
-    except Exception:  # noqa: BLE001 - auditing must never fail the request
+    except Exception:  # auditing must never fail the request
         db.rollback()
         logger.exception("failed to persist audit event", extra={"event": event})

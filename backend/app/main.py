@@ -139,7 +139,7 @@ def readiness(response: Response) -> dict[str, str]:
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("readiness check failed", extra={"event": "health.not_ready"})
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "degraded", "database": "unreachable"}
