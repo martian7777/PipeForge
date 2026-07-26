@@ -142,9 +142,17 @@ export interface AgentSession {
   created_at: string;
 }
 
+export interface AgentProposal {
+  id: number;
+  stage: string;
+  proposed_config_json: Record<string, unknown>;
+  status: string;
+}
+
 export interface AgentSessionDetail extends AgentSession {
   error_json: Record<string, unknown>;
   messages: AgentMessage[];
+  pending_proposal: AgentProposal | null;
 }
 
 export interface AgentConfigItem {

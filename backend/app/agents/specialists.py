@@ -13,7 +13,7 @@ from pydantic_ai import Agent
 
 from . import tools
 from .deps import AgentDeps
-from .schemas import EdaNarrative
+from .schemas import CleaningPlan, EdaNarrative, EvalVerdict, ModelingPlan, ProfileReport
 
 EDA_ANALYST_PROMPT = """\
 You are the EDA Analyst for PipeForge, an AutoML platform. You are given a dataset and
@@ -56,4 +56,78 @@ def build_chat_agent(model: Any) -> Agent[AgentDeps, str]:
         system_prompt=CHAT_PROMPT,
         tools=list(tools.READ_ONLY_TOOLS),
         name="chat",
+    )
+
+
+# --- Copilot / Autopilot specialists (propose typed plans; the orchestrator executes) ---
+
+PROFILER_PROMPT = """\
+You are the Profiler. Inspect the dataset's schema and samples with the tools, then
+decide the most likely task_type (classification/regression/timeseries) and the target
+column, and flag data-quality issues. Prefer the heuristic suggestion but override it if
+the data clearly says otherwise. Reference real column names only.
+"""
+
+CLEANING_PROMPT = """\
+You are the Cleaning Agent. Given the dataset profile, propose a cleaning strategy:
+imputation for numeric and categorical columns, whether to drop duplicates / constant
+columns, and an outlier method. Justify each choice per affected column. Return a
+CleaningPlan — the user will review it before it runs.
+"""
+
+MODELING_PROMPT = """\
+You are the Modeling Strategist. Given the profile and EDA, choose a sensible subset of
+candidate models to train (use list_candidate_models for the task type) and a test split
+size. Favour a small, diverse set over the whole zoo when the dataset is small. Return a
+ModelingPlan — the user will review it before training runs.
+"""
+
+CRITIC_PROMPT = """\
+You are the Evaluation Critic. Read the leaderboard and model details, then recommend the
+best model by id, list warnings (overfitting, leakage, metric that looks too good), and
+justify the recommendation. Ground every claim in the metrics you read.
+"""
+
+
+def build_profiler(model: Any) -> Agent[AgentDeps, ProfileReport]:
+    return Agent(
+        model,
+        deps_type=AgentDeps,
+        output_type=ProfileReport,
+        system_prompt=PROFILER_PROMPT,
+        tools=[tools.profile_dataset, tools.suggest_task_and_target],
+        name="profiler",
+    )
+
+
+def build_cleaning_agent(model: Any) -> Agent[AgentDeps, CleaningPlan]:
+    return Agent(
+        model,
+        deps_type=AgentDeps,
+        output_type=CleaningPlan,
+        system_prompt=CLEANING_PROMPT,
+        tools=[tools.profile_dataset, tools.query_eda_stats],
+        name="cleaning",
+    )
+
+
+def build_modeling_strategist(model: Any) -> Agent[AgentDeps, ModelingPlan]:
+    return Agent(
+        model,
+        deps_type=AgentDeps,
+        output_type=ModelingPlan,
+        system_prompt=MODELING_PROMPT,
+        tools=[tools.profile_dataset, tools.query_eda_stats, tools.list_candidate_models],
+        name="modeling",
+    )
+
+
+def build_critic(model: Any) -> Agent[AgentDeps, EvalVerdict]:
+    return Agent(
+        model,
+        deps_type=AgentDeps,
+        output_type=EvalVerdict,
+        system_prompt=CRITIC_PROMPT,
+        tools=[tools.read_leaderboard, tools.read_model_detail],
+        name="critic",
     )

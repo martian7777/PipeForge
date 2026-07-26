@@ -183,6 +183,20 @@ export const api = {
     );
   },
 
+  async approveProposal(
+    id: number,
+    decision: "approve" | "reject",
+    edited_config?: Record<string, unknown>
+  ): Promise<AgentSessionDetail> {
+    return handle(
+      await fetch(`/api/agents/sessions/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ decision, edited_config: edited_config ?? null }),
+      })
+    );
+  },
+
   async getAgentConfig(): Promise<AgentConfig> {
     return handle(await fetch("/api/agents/config", { headers: authHeaders() }));
   },

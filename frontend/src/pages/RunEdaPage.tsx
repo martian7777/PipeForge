@@ -7,6 +7,7 @@ const Chart = lazy(() => import("../components/Chart"));
 const EvalCharts = lazy(() => import("../components/EvalCharts"));
 const AgentBoard = lazy(() => import("../components/AgentBoard"));
 const AgentPanel = lazy(() => import("../components/AgentPanel"));
+const ProposalGate = lazy(() => import("../components/ProposalGate"));
 
 function StatTile({ label, value }: { label: string; value: string | number }) {
   return (
@@ -251,26 +252,61 @@ export default function RunEdaPage() {
   );
 }
 
+type AgentSubMode = "advise" | "chat" | "copilot";
+
 function AgentTab({ runId }: { runId: number }) {
-  const [mode, setMode] = useState<"advise" | "chat">("advise");
+  const [mode, setMode] = useState<AgentSubMode>("advise");
   const [session, setSession] = useState<AgentSessionDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Reset when switching sub-mode.
-  const switchMode = (m: "advise" | "chat") => {
+  const switchMode = (m: AgentSubMode) => {
     setMode(m);
     setSession(null);
     setError(null);
   };
 
+  // Copilot runs in the background and parks at gates — poll while it's running.
+  const sessionId = session?.id;
+  const running = mode === "copilot" && session?.status === "running";
+  useEffect(() => {
+    if (!running || sessionId === undefined) return;
+    let cancelled = false;
+    const iv = window.setInterval(async () => {
+      try {
+        const s = await api.getAgentSession(sessionId);
+        if (!cancelled) setSession(s);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(iv);
+    };
+  }, [running, sessionId]);
+
   const start = async () => {
     setBusy(true);
     setError(null);
     try {
-      // Advise runs the analysis server-side and returns the full trace; chat opens a
-      // ready session that the composer then drives.
+      // Advise runs synchronously and returns the full trace; chat opens a ready session
+      // the composer drives; copilot starts a background flow the poll loop then follows.
       setSession(await api.createAgentSession({ mode, run_id: runId }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const decide = async (decision: "approve" | "reject", edited?: Record<string, unknown>) => {
+    if (!session) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setSession(await api.approveProposal(session.id, decision, edited));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -306,24 +342,28 @@ function AgentTab({ runId }: { runId: number }) {
         <h2>AI agents</h2>
         <p className="subtle">
           Let PipeForge's agents analyse this run. <b>Advise</b> narrates insights and risks;{" "}
-          <b>Chat</b> answers questions about your data and results.
+          <b>Chat</b> answers questions; <b>Copilot</b> drives the pipeline, pausing for your
+          approval at each stage.
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center" }}>
-          <button
-            className={`btn ${mode === "advise" ? "" : "secondary"}`}
-            onClick={() => switchMode("advise")}
-          >
-            Advise
-          </button>
-          <button
-            className={`btn ${mode === "chat" ? "" : "secondary"}`}
-            onClick={() => switchMode("chat")}
-          >
-            Chat
-          </button>
+          {(["advise", "chat", "copilot"] as const).map((m) => (
+            <button
+              key={m}
+              className={`btn ${mode === m ? "" : "secondary"}`}
+              onClick={() => switchMode(m)}
+            >
+              {m[0].toUpperCase() + m.slice(1)}
+            </button>
+          ))}
           {!session && (
             <button className="btn" onClick={start} disabled={busy}>
-              {busy ? "Starting…" : mode === "advise" ? "Run analysis" : "Start chat"}
+              {busy
+                ? "Starting…"
+                : mode === "advise"
+                  ? "Run analysis"
+                  : mode === "chat"
+                    ? "Start chat"
+                    : "Start Copilot"}
             </button>
           )}
           <Link className="btn ghost" to="/settings/agents" style={{ marginLeft: "auto" }}>
@@ -346,9 +386,20 @@ function AgentTab({ runId }: { runId: number }) {
       {session && (
         <Suspense fallback={<div className="card spinner">Loading…</div>}>
           <AgentBoard session={session} />
+          {session.status === "awaiting_approval" && session.pending_proposal && (
+            <ProposalGate
+              proposal={session.pending_proposal}
+              busy={busy}
+              onApprove={(edited) => decide("approve", edited)}
+              onReject={() => decide("reject")}
+            />
+          )}
+          {mode === "copilot" && session.status === "running" && (
+            <div className="card spinner">Copilot working…</div>
+          )}
           <AgentPanel
             session={session}
-            busy={busy}
+            busy={busy && mode === "chat"}
             onSend={mode === "chat" ? send : undefined}
           />
         </Suspense>

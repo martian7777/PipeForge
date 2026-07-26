@@ -72,7 +72,9 @@ def train_models(
     task_type: str,
     progress_cb: Optional[ProgressCb] = None,
     test_size: float = 0.2,
+    model_names: Optional[list[str]] = None,
 ) -> TrainingResult:
+    """Sweep the model zoo (or the ``model_names`` subset, if given) and rank the result."""
     if target not in df.columns:
         raise ValueError(f"Target column '{target}' not in data")
 
@@ -100,6 +102,10 @@ def train_models(
 
     metric_name, higher_better = evaluate.primary_metric(task_type)
     candidates = model_zoo.zoo_for(task_type)
+    if model_names:
+        wanted = set(model_names)
+        subset = [c for c in candidates if c.name in wanted]
+        candidates = subset or candidates  # fall back to the full zoo if none matched
     trained: list[TrainedModel] = []
 
     for i, cand in enumerate(candidates):

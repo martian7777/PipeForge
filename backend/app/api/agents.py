@@ -11,19 +11,24 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from datetime import datetime, timezone
+
 from ..agents import providers
 from ..agents import session as agent_session
 from ..agents.providers import AGENT_LABELS, ROLE_BY_AGENT, ProviderError
 from ..db import get_db
-from ..models import AgentConfig, AgentSession, Dataset, Run, User
+from ..jobs import runner
+from ..models import AgentConfig, AgentProposal, AgentSession, Dataset, Run, User
 from ..ratelimit import limiter
 from ..schemas import (
     AgentConfigItem,
     AgentConfigOut,
     AgentConfigUpdate,
     AgentMessageOut,
+    AgentProposalOut,
     AgentSessionCreate,
     AgentSessionDetail,
+    ApproveIn,
     ChatMessageIn,
 )
 from ..security import current_user
@@ -61,6 +66,21 @@ def _owned_session(db: Session, session_id: int, user: User) -> AgentSession:
     return s
 
 
+def _detail(db: Session, session: AgentSession) -> AgentSessionDetail:
+    """Session detail including any pending approval gate (Copilot)."""
+    db.refresh(session)
+    d = AgentSessionDetail.model_validate(session)
+    pending = (
+        db.query(AgentProposal)
+        .filter(AgentProposal.session_id == session.id, AgentProposal.status == "pending")
+        .order_by(AgentProposal.id.desc())
+        .first()
+    )
+    if pending is not None:
+        d.pending_proposal = AgentProposalOut.model_validate(pending)
+    return d
+
+
 @router.post("/sessions", response_model=AgentSessionDetail, status_code=201)
 async def create_session(
     body: AgentSessionCreate, db: Session = Depends(get_db), user: User = Depends(current_user)
@@ -74,34 +94,77 @@ async def create_session(
     else:
         _owned_dataset(db, dataset_id, user)
 
+    mode = body.mode.value
+    # Copilot drives its own new Run from the dataset, so it starts run-less.
     session = AgentSession(
-        user_id=user.id, run_id=run_id, dataset_id=dataset_id, mode=body.mode.value, status="running"
+        user_id=user.id,
+        run_id=(None if mode in ("copilot", "autopilot") else run_id),
+        dataset_id=dataset_id,
+        mode=mode,
+        status="running",
     )
     db.add(session)
     db.commit()
     db.refresh(session)
 
-    if body.mode.value == "advise":
+    if mode == "advise":
         try:
             await agent_session.run_advise(db, session)
         except ProviderError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-    elif body.mode.value == "chat":
+    elif mode == "chat":
         session.status = "done"  # ready for messages
         db.commit()
+    elif mode == "copilot":
+        runner.submit_copilot(session.id)  # runs in the background; client polls
     else:
-        # copilot / autopilot land in Phases 2 & 3.
-        raise HTTPException(status_code=501, detail=f"Mode '{body.mode.value}' is not available yet")
+        # autopilot lands in Phase 3.
+        raise HTTPException(status_code=501, detail=f"Mode '{mode}' is not available yet")
 
-    db.refresh(session)
-    return session
+    return _detail(db, session)
 
 
 @router.get("/sessions/{session_id}", response_model=AgentSessionDetail)
 def get_session(
     session_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)
-) -> AgentSession:
-    return _owned_session(db, session_id, user)
+) -> AgentSessionDetail:
+    return _detail(db, _owned_session(db, session_id, user))
+
+
+@router.post("/sessions/{session_id}/approve", response_model=AgentSessionDetail)
+def approve(
+    session_id: int,
+    body: ApproveIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> AgentSessionDetail:
+    """Approve / edit / reject the pending Copilot gate, then resume the flow."""
+    _require_enabled()
+    session = _owned_session(db, session_id, user)
+    if session.status != "awaiting_approval":
+        raise HTTPException(status_code=409, detail="No pending approval for this session")
+    proposal = (
+        db.query(AgentProposal)
+        .filter(AgentProposal.session_id == session.id, AgentProposal.status == "pending")
+        .order_by(AgentProposal.id.desc())
+        .first()
+    )
+    if proposal is None:
+        raise HTTPException(status_code=409, detail="No pending proposal")
+
+    if body.decision == "reject":
+        proposal.status = "rejected"
+    elif body.edited_config:
+        proposal.proposed_config_json = {**proposal.proposed_config_json, **body.edited_config}
+        proposal.status = "edited"
+    else:
+        proposal.status = "approved"
+    proposal.decided_at = datetime.now(timezone.utc)
+    session.status = "running"
+    db.commit()
+
+    runner.submit_copilot(session.id)  # resume from the gate
+    return _detail(db, session)
 
 
 @router.post("/sessions/{session_id}/messages", response_model=list[AgentMessageOut])

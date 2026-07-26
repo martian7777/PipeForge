@@ -237,9 +237,26 @@ class AgentSessionOut(BaseModel):
     created_at: datetime
 
 
+class AgentProposalOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    stage: str
+    proposed_config_json: dict[str, Any]
+    status: str
+
+
 class AgentSessionDetail(AgentSessionOut):
     error_json: dict[str, Any] = Field(default_factory=dict)
     messages: list[AgentMessageOut] = Field(default_factory=list)
+    pending_proposal: Optional[AgentProposalOut] = None
+
+
+class ApproveIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: str = Field(pattern="^(approve|reject)$")
+    edited_config: Optional[dict[str, Any]] = None
 
 
 class ChatMessageIn(BaseModel):

@@ -15,8 +15,12 @@ from pathlib import Path
 
 from ..config import settings
 from ..db import SessionLocal
-from ..models import Dataset, ModelResult, Run
-from ..pipeline import clean, eda, ingest, registry, train
+from ..models import AgentSession, Dataset, ModelResult, Run
+from ..pipeline import clean, eda, ingest
+
+# ``train``/``registry`` pull the ML stack (sklearn/xgboost/joblib); import them lazily
+# inside ``train_and_persist`` so merely importing the runner (e.g. from the API to submit
+# a job) doesn't require the ML libraries — only the worker that trains does.
 
 _executor = ThreadPoolExecutor(max_workers=settings.job_max_workers, thread_name_prefix="pipeforge-job")
 
@@ -87,44 +91,8 @@ def execute_run(run_id: int) -> None:
             def progress_cb(frac: float, msg: str) -> None:
                 _set(db, run, stage="training", progress=30 + frac * 60, message=msg)
 
-            result = train.train_models(cleaned, run.target_col, run.task_type, progress_cb)
-
-            feature_columns = (
-                result.feature_spec["numeric"]
-                + result.feature_spec["categorical"]
-                + result.feature_spec["datetime"]
-            )
-
-            _set(db, run, stage="finalizing", progress=93)
-            best_id: int | None = None
-            for m in result.models:
-                artifact_key = None
-                if m.rank == 1 and not m.error:
-                    artifact_key = registry.save_model(
-                        m.pipeline, run.task_type, run.target_col, feature_columns, result.classes
-                    )
-                mr = ModelResult(
-                    run_id=run.id,
-                    model_name=m.name,
-                    family=m.family,
-                    metrics_json=m.metrics,
-                    plots_json=m.plots,
-                    artifact_path=artifact_key,
-                    rank=m.rank if not m.error else 999,
-                )
-                db.add(mr)
-                db.flush()
-                if m.rank == 1 and not m.error:
-                    best_id = mr.id
-            run.best_model_id = best_id
-            db.commit()
-
-            best = next((m for m in result.models if m.rank == 1), None)
-            score = f"{result.primary_metric}={best.metrics.get(result.primary_metric):.4g}" if best else ""
-            _set(
-                db, run, status="done", stage="done", progress=100,
-                message=f"Best model: {best.name if best else '?'} ({score})",
-            )
+            message = train_and_persist(db, run, cleaned, progress_cb=progress_cb)
+            _set(db, run, status="done", stage="done", progress=100, message=message)
         else:
             _set(
                 db, run, status="done", stage="done", progress=100,
@@ -137,5 +105,78 @@ def execute_run(run_id: int) -> None:
                 _set(db, run, status="error", stage="error", message=str(exc))
         except Exception:  # noqa: BLE001
             pass
+    finally:
+        db.close()
+
+
+def train_and_persist(db, run: Run, df, *, model_names=None, test_size: float = 0.2, progress_cb=None) -> str:
+    """Train (optionally a model subset), persist the leaderboard + best artifact.
+
+    Shared by the classic runner and the Copilot orchestrator. Sets ``run.best_model_id``
+    and returns a human-readable "Best model: …" summary; the caller owns run status.
+    """
+    from ..pipeline import registry, train  # lazy: ML stack loaded only when training
+
+    result = train.train_models(
+        df, run.target_col, run.task_type, progress_cb, test_size=test_size, model_names=model_names
+    )
+    feature_columns = (
+        result.feature_spec["numeric"]
+        + result.feature_spec["categorical"]
+        + result.feature_spec["datetime"]
+    )
+    best_id: int | None = None
+    for m in result.models:
+        artifact_key = None
+        if m.rank == 1 and not m.error:
+            artifact_key = registry.save_model(
+                m.pipeline, run.task_type, run.target_col, feature_columns, result.classes
+            )
+        mr = ModelResult(
+            run_id=run.id,
+            model_name=m.name,
+            family=m.family,
+            metrics_json=m.metrics,
+            plots_json=m.plots,
+            artifact_path=artifact_key,
+            rank=m.rank if not m.error else 999,
+        )
+        db.add(mr)
+        db.flush()
+        if m.rank == 1 and not m.error:
+            best_id = mr.id
+    run.best_model_id = best_id
+    db.commit()
+
+    best = next((m for m in result.models if m.rank == 1), None)
+    score = f"{result.primary_metric}={best.metrics.get(result.primary_metric):.4g}" if best else ""
+    return f"Best model: {best.name if best else '?'} ({score})"
+
+
+# --- Copilot background driver -------------------------------------------------------
+# Runs the async orchestrator in a worker thread (its own event loop + DB session),
+# parking at approval gates. Re-submitted by the /approve endpoint to resume.
+
+
+def submit_copilot(session_id: int) -> None:
+    """Schedule (or resume) a copilot session on the background pool."""
+    _executor.submit(_safe_copilot, session_id)
+
+
+def _safe_copilot(session_id: int) -> None:
+    import asyncio
+
+    from ..agents import copilot
+
+    db = SessionLocal()
+    try:
+        session = db.get(AgentSession, session_id)
+        if session is None:
+            return
+        asyncio.run(copilot.advance(db, session))
+    except Exception:  # noqa: BLE001 - copilot.advance records its own errors; last-resort guard
+        import traceback
+
+        traceback.print_exc()
     finally:
         db.close()
