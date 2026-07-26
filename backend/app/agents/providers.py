@@ -149,7 +149,10 @@ def _build_model(provider: str, model_id: str) -> Any:
         return GoogleModel(model_id, provider=GoogleProvider(api_key=key))
 
     # openai, ollama, and openai_compatible all use the OpenAI-compatible client.
-    from pydantic_ai.models.openai import OpenAIModel
+    try:
+        from pydantic_ai.models.openai import OpenAIModel
+    except ImportError:
+        from pydantic_ai.models.openai import OpenAIChatModel as OpenAIModel
     from pydantic_ai.providers.openai import OpenAIProvider
 
     if provider == "ollama":
