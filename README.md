@@ -30,6 +30,28 @@ PipeForge automates the tedious parts of data science. Upload a data file, tell 
 
 **Ingest → Clean/ETL → EDA → AutoML Training → Best-Model Selection → Predict**
 
+…and, optionally, an **agentic AI layer** where specialist LLM agents reason about each
+step — narrating insights, proposing cleaning/modeling strategies you can approve, or
+driving the whole pipeline end-to-end. See **[Agentic AI Layer](docs/AGENTS.md)**.
+
+---
+
+## 🤖 Agentic AI (optional layer)
+
+On top of the deterministic pipeline, PipeForge can run **specialist agents** — a Profiler,
+Cleaning Agent, EDA Analyst, Modeling Strategist, and Evaluation Critic, coordinated by a
+Forge Master. The pipeline functions become the agents' *tools*: agents decide, the tested
+pipeline executes. Four interaction modes:
+
+- **Advise** — narrates insights, risks, and hypotheses over a completed run.
+- **Chat** — conversational Q&A over your data and results.
+- **Copilot** — drives the pipeline, pausing for your approval at each stage.
+- **Autopilot** — runs the whole pipeline unattended.
+
+Provider-pluggable (**Claude / OpenAI / Ollama**) with per-agent model configuration. It's
+purely additive — with no provider configured, the classic pipeline is unchanged. Full
+details and setup in **[docs/AGENTS.md](docs/AGENTS.md)**.
+
 ---
 
 ## ✨ Features & AutoML Capabilities (Milestone 3)
@@ -56,7 +78,8 @@ PipeForge trains **8 candidate models** per run, automatically handles feature e
 | **Frontend** | React 18, Vite, TypeScript, Plotly |
 | **Backend** | FastAPI, SQLAlchemy 2, Pydantic v2 |
 | **Database** | SQLite (Dev) → PostgreSQL (Prod) |
-| **Machine Learning** | Scikit-Learn, XGBoost, LightGBM |
+| **Machine Learning** | Scikit-Learn, XGBoost, LightGBM, SHAP |
+| **Agentic AI** | PydanticAI, pluggable Claude / OpenAI / Ollama |
 | **Architecture** | Nginx load balancing, JWT stateless auth |
 
 ## 🚀 Quick Start (Local Dev)
@@ -81,6 +104,17 @@ npm run dev
 ```
 *App running at: [http://localhost:5173](http://localhost:5173) (proxies /api to :8000)*
 
+### 3. (Optional) Enable the agentic AI layer
+
+```powershell
+cd backend
+pip install -r requirements-agents.txt        # PydanticAI + provider SDK
+$env:PIPEFORGE_LLM_PROVIDER = "anthropic"      # or openai / ollama
+$env:PIPEFORGE_LLM_API_KEY  = "sk-ant-..."
+```
+Then open a completed run and use the **Agent** tab. Configure per-agent models at
+`/settings/agents`. Full guide: **[docs/AGENTS.md](docs/AGENTS.md)**.
+
 ### 🐳 Run via Docker (Full Stack)
 
 Launch 3 backend replicas behind an Nginx gateway with Postgres and Redis:
@@ -92,6 +126,7 @@ docker compose up --build --scale backend=3
 ## 📚 Documentation & Resources
 
 - 🏗️ [Architecture Overview](docs/ARCHITECTURE.md)
+- 🤖 [Agentic AI Layer](docs/AGENTS.md)
 - 🔌 [REST API Reference](docs/API.md)
 - 🔒 [Security & Hardening](docs/SECURITY.md)
 - 🚢 [Deployment Guide](docs/DEPLOYMENT.md)
