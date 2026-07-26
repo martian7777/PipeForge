@@ -1,15 +1,17 @@
-"""Copilot orchestrator — an approval-gated state machine over the real pipeline.
+"""Copilot / Autopilot orchestrator — a state machine over the real pipeline.
 
-Unlike Advise/Chat (read-only, request-response), Copilot *drives* the pipeline with two
-human-in-the-loop gates. It is resumable: ``advance()`` inspects DB state and continues
-from wherever it last stopped, so the background runner can park at a gate
-(``awaiting_approval``) and pick up again when the user approves.
+Unlike Advise/Chat (read-only, request-response), this *drives* the pipeline. The same
+``advance()`` powers two modes:
+- **Copilot** — pauses at two human-in-the-loop gates (``awaiting_approval``); resumable,
+  so the background runner parks and picks up again when the user approves.
+- **Autopilot** — the Forge Master runs end-to-end unattended: the gates are
+  auto-approved, so a single background invocation flows profile → … → critique → done.
 
 Stages:  profile → [cleaning gate] → clean+EDA → [modeling gate] → train → critique → done
 
 The specialist agents only *propose* typed plans; this module executes them via the
-tested ``pipeline/*`` functions after approval. Heavy ML imports (train/registry) are
-lazy so the profiling/cleaning stages don't require the ML stack.
+tested ``pipeline/*`` functions. Heavy ML imports (train/registry) are lazy so the
+profiling/cleaning stages don't require the ML stack.
 """
 from __future__ import annotations
 
@@ -82,6 +84,8 @@ async def advance(db: Session, session: AgentSession) -> None:
 
 
 async def _advance(db: Session, session: AgentSession) -> None:
+    auto = session.mode == "autopilot"  # Autopilot auto-approves both gates end-to-end.
+
     # 1. Profile → create the Run.
     if session.run_id is None:
         session.status = "running"
@@ -118,11 +122,16 @@ async def _advance(db: Session, session: AgentSession) -> None:
         agent = build_cleaning_agent(providers.get_model("cleaning", deps.user, db))
         plan = (await agent.run("Propose a cleaning strategy for this dataset.", deps=deps)).output
         cfg = CleaningConfig(**plan.model_dump(exclude={"per_column_reasons"})).model_dump()
-        db.add(AgentProposal(session_id=session.id, stage="cleaning", proposed_config_json=cfg))
+        cp = AgentProposal(session_id=session.id, stage="cleaning", proposed_config_json=cfg)
+        db.add(cp)
+        db.commit()
         reasons = "\n".join(f"• {r.column}: {r.action} — {r.reason}" for r in plan.per_column_reasons)
         _msg(db, session, role="assistant", agent_name="cleaning",
              content=reasons or "Proposed a cleaning configuration.")
-        return _park(db, session)
+        if not auto:
+            return _park(db, session)
+        cp.status = "approved"  # Autopilot: proceed without a gate.
+        db.commit()
     if cp.status == "pending":
         return _park(db, session)
     if cp.status == "rejected":
@@ -161,10 +170,15 @@ async def _advance(db: Session, session: AgentSession) -> None:
         deps = _deps(db, session, run)
         agent = build_modeling_strategist(providers.get_model("modeling", deps.user, db))
         plan = (await agent.run("Propose which models to train and the split.", deps=deps)).output
-        db.add(AgentProposal(session_id=session.id, stage="modeling", proposed_config_json=plan.model_dump()))
+        mp = AgentProposal(session_id=session.id, stage="modeling", proposed_config_json=plan.model_dump())
+        db.add(mp)
+        db.commit()
         _msg(db, session, role="assistant", agent_name="modeling", content=plan.rationale,
              tool_result_json=plan.model_dump())
-        return _park(db, session)
+        if not auto:
+            return _park(db, session)
+        mp.status = "approved"  # Autopilot: proceed without a gate.
+        db.commit()
     if mp.status == "pending":
         return _park(db, session)
     if mp.status == "rejected":

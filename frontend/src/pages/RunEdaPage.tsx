@@ -252,7 +252,7 @@ export default function RunEdaPage() {
   );
 }
 
-type AgentSubMode = "advise" | "chat" | "copilot";
+type AgentSubMode = "advise" | "chat" | "copilot" | "autopilot";
 
 function AgentTab({ runId }: { runId: number }) {
   const [mode, setMode] = useState<AgentSubMode>("advise");
@@ -267,9 +267,11 @@ function AgentTab({ runId }: { runId: number }) {
     setError(null);
   };
 
-  // Copilot runs in the background and parks at gates — poll while it's running.
+  // Copilot/Autopilot run in the background (copilot parks at gates, autopilot doesn't) —
+  // poll while running.
+  const isBackground = mode === "copilot" || mode === "autopilot";
   const sessionId = session?.id;
-  const running = mode === "copilot" && session?.status === "running";
+  const running = isBackground && session?.status === "running";
   useEffect(() => {
     if (!running || sessionId === undefined) return;
     let cancelled = false;
@@ -343,10 +345,10 @@ function AgentTab({ runId }: { runId: number }) {
         <p className="subtle">
           Let PipeForge's agents analyse this run. <b>Advise</b> narrates insights and risks;{" "}
           <b>Chat</b> answers questions; <b>Copilot</b> drives the pipeline, pausing for your
-          approval at each stage.
+          approval at each stage; <b>Autopilot</b> runs the whole thing unattended.
         </p>
         <div style={{ display: "flex", gap: 10, marginTop: 12, alignItems: "center" }}>
-          {(["advise", "chat", "copilot"] as const).map((m) => (
+          {(["advise", "chat", "copilot", "autopilot"] as const).map((m) => (
             <button
               key={m}
               className={`btn ${mode === m ? "" : "secondary"}`}
@@ -363,7 +365,9 @@ function AgentTab({ runId }: { runId: number }) {
                   ? "Run analysis"
                   : mode === "chat"
                     ? "Start chat"
-                    : "Start Copilot"}
+                    : mode === "copilot"
+                      ? "Start Copilot"
+                      : "Start Autopilot"}
             </button>
           )}
           <Link className="btn ghost" to="/settings/agents" style={{ marginLeft: "auto" }}>
@@ -394,8 +398,10 @@ function AgentTab({ runId }: { runId: number }) {
               onReject={() => decide("reject")}
             />
           )}
-          {mode === "copilot" && session.status === "running" && (
-            <div className="card spinner">Copilot working…</div>
+          {isBackground && session.status === "running" && (
+            <div className="card spinner">
+              {mode === "autopilot" ? "Autopilot working…" : "Copilot working…"}
+            </div>
           )}
           <AgentPanel
             session={session}

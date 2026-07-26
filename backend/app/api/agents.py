@@ -115,11 +115,10 @@ async def create_session(
     elif mode == "chat":
         session.status = "done"  # ready for messages
         db.commit()
-    elif mode == "copilot":
-        runner.submit_copilot(session.id)  # runs in the background; client polls
-    else:
-        # autopilot lands in Phase 3.
-        raise HTTPException(status_code=501, detail=f"Mode '{mode}' is not available yet")
+    elif mode in ("copilot", "autopilot"):
+        # Both run the orchestrator in the background; copilot parks at gates, autopilot
+        # runs end-to-end. The client polls GET /sessions/{id}.
+        runner.submit_copilot(session.id)
 
     return _detail(db, session)
 
