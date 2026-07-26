@@ -42,6 +42,39 @@ services:
       PIPEFORGE_RATELIMIT_STORAGE: redis://redis:6379/0
       PIPEFORGE_JWT_SECRET: ${PIPEFORGE_JWT_SECRET:-please-override-with-a-32-byte-random-secret-in-prod}
       PIPEFORGE_CORS_ORIGINS: '["http://localhost:8080"]'
+
+      # Schema is applied by `alembic upgrade head` in the entrypoint, never create_all.
+      PIPEFORGE_AUTO_CREATE_TABLES: "false"
+
+      # Public URL as the browser sees it. OAuth redirect URIs are derived from this,
+      # so it must match what is registered with each identity provider.
+      PIPEFORGE_PUBLIC_BASE_URL: ${PIPEFORGE_PUBLIC_BASE_URL:-http://localhost:8080}
+
+      # Observability: JSON logs to stdout for the log shipper.
+      PIPEFORGE_LOG_FORMAT: json
+      PIPEFORGE_LOG_LEVEL: INFO
+
+      # Token lifetimes. Short access tokens + rotating refresh tokens.
+      PIPEFORGE_ACCESS_TOKEN_TTL_MINUTES: "15"
+      PIPEFORGE_REFRESH_TOKEN_TTL_DAYS: "14"
+      # Set to "true" once TLS terminates at the ingress (also enables HSTS).
+      PIPEFORGE_REFRESH_COOKIE_SECURE: ${PIPEFORGE_REFRESH_COOKIE_SECURE:-false}
+
+      # First admin. If unset, the first account to register becomes admin.
+      PIPEFORGE_BOOTSTRAP_ADMIN_EMAIL: ${PIPEFORGE_BOOTSTRAP_ADMIN_EMAIL:-}
+
+      # --- OAuth 2.0 / OIDC single sign-on ---
+      # A provider turns on as soon as its client id + secret are present.
+      # Redirect URI to register: {PUBLIC_BASE_URL}/api/auth/oauth/{provider}/callback
+      PIPEFORGE_GOOGLE_CLIENT_ID: ${PIPEFORGE_GOOGLE_CLIENT_ID:-}
+      PIPEFORGE_GOOGLE_CLIENT_SECRET: ${PIPEFORGE_GOOGLE_CLIENT_SECRET:-}
+      PIPEFORGE_GITHUB_CLIENT_ID: ${PIPEFORGE_GITHUB_CLIENT_ID:-}
+      PIPEFORGE_GITHUB_CLIENT_SECRET: ${PIPEFORGE_GITHUB_CLIENT_SECRET:-}
+      PIPEFORGE_MICROSOFT_CLIENT_ID: ${PIPEFORGE_MICROSOFT_CLIENT_ID:-}
+      PIPEFORGE_MICROSOFT_CLIENT_SECRET: ${PIPEFORGE_MICROSOFT_CLIENT_SECRET:-}
+      PIPEFORGE_MICROSOFT_TENANT: ${PIPEFORGE_MICROSOFT_TENANT:-common}
+      # Optional allow-list, e.g. '["yourcompany.com"]'
+      PIPEFORGE_OAUTH_ALLOWED_EMAIL_DOMAINS: ${PIPEFORGE_OAUTH_ALLOWED_EMAIL_DOMAINS:-[]}
     volumes:
       - storage:/app/storage           # shared object storage across replicas
     depends_on:

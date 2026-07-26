@@ -42,7 +42,8 @@ Building production-grade machine learning pipelines is notoriously time-consumi
 - 🤖 **Agentic AI Engine:** 5 specialized LLM agents (Profiler, Cleaning Agent, EDA Analyst, Modeling Strategist, Evaluation Critic) orchestrated by a **Forge Master**.
 - 📈 **Rich Visual Analytics:** Automatic confusion matrices, ROC/AUC curves, residual plots, feature importances, and SHAP explainability visualizations powered by Plotly.
 - 📦 **Deployable Production Artifacts:** Save complete transformation and model pipelines as single unified `.joblib` bundles for instant inference.
-- 🔒 **Enterprise Scalability & Security:** Stateless FastAPI architecture behind Nginx load balancing, PostgreSQL persistence, Redis queueing, and JWT security.
+- 🔒 **Enterprise Scalability:** Stateless FastAPI behind Nginx load balancing, PostgreSQL persistence, Redis-backed rate limiting, and Alembic-managed migrations — `--scale backend=N` for any N.
+- 🛡️ **Production-Grade Security:** **OAuth 2.0 / OIDC single sign-on** (Google, Microsoft, GitHub) via authorization code + PKCE, short-lived access tokens with **rotating refresh tokens and reuse detection**, **role-based access control** (viewer / user / admin), identity-keyed rate limiting, structured JSON logging with request-id tracing, and a queryable **audit trail**. See [SECURITY.md](docs/SECURITY.md).
 
 ---
 
@@ -183,7 +184,7 @@ Explore detailed operational, security, and technical documentation:
 | 🏗️ **[Architecture](docs/ARCHITECTURE.md)** | System design, database schemas, state machines, & scalability. |
 | 🤖 **[Agentic AI Layer](docs/AGENTS.md)** | Agent roles, tool definitions, prompt setup, & interaction modes. |
 | 🔌 **[REST API Reference](docs/API.md)** | Endpoint specs, authentication schema, payload formats, & examples. |
-| 🔒 **[Security & Hardening](docs/SECURITY.md)** | JWT auth mechanisms, CORS rules, input sanitization, & rate limiting. |
+| 🔒 **[Security & Hardening](docs/SECURITY.md)** | OAuth 2.0 / OIDC SSO, token rotation & revocation, RBAC, rate limiting, audit logging, CORS & input validation. |
 | 🚢 **[Deployment Guide](docs/DEPLOYMENT.md)** | Docker orchestration, environment vars, & production deployment. |
 | 🗺️ **[Project Roadmap](docs/ROADMAP.md)** | Feature milestones, planned integrations, & release history. |
 | 📖 **[Project Wiki](wiki/Home.md)** | Detailed tutorials, user guides, and troubleshooting tips. |

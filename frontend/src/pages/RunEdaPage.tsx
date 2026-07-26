@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, tokenStore } from "../api/client";
+import { api } from "../api/client";
 import type { AgentSessionDetail, EdaResult, Leaderboard, ModelDetail, RunStatus } from "../types";
 
 const Chart = lazy(() => import("../components/Chart"));
@@ -131,9 +131,11 @@ export default function RunEdaPage() {
             Agent
           </button>
           {eda?.report_url && (
-            <a className="btn ghost" href={`/api/runs/${runId}/report?token=${tokenStore.get() || ""}`} target="_blank" rel="noreferrer">
+            // Fetched with the Authorization header and opened as a blob, so the access
+            // token never appears in a URL, browser history, or a referrer header.
+            <button className="btn ghost" onClick={() => void api.openReport(Number(runId))}>
               HTML report ↗
-            </a>
+            </button>
           )}
         </div>
       </div>

@@ -1,9 +1,10 @@
 # API Reference
 
-Base URL (dev): `http://localhost:8000`. Interactive docs at `/docs`.
+Base URL (dev): `http://localhost:8000`. Interactive docs at `/api/docs`.
 
-All routes except `/api/health`, `/api/auth/register`, and `/api/auth/login` require a
-bearer token:
+All routes except `/api/health*`, `/api/auth/options`, `/api/auth/register`,
+`/api/auth/login`, `/api/auth/refresh`, and the `/api/auth/oauth/*` flow require a bearer
+token:
 
 ```
 Authorization: Bearer <access_token>
@@ -11,32 +12,124 @@ Authorization: Bearer <access_token>
 
 Datasets and runs are **scoped to the authenticated user** â€” you can only see your own.
 
+### Error format
+
+Every error returns the same envelope. `detail` is kept for convenience; `error` carries
+the machine-readable type and the `request_id` to quote when reporting a problem (it is
+also echoed as the `X-Request-ID` response header).
+
+```json
+{
+  "detail": "Request validation failed",
+  "error": {
+    "type": "validation_error",
+    "message": "Request validation failed",
+    "request_id": "3f2c9a1b...",
+    "details": [{ "field": "password", "message": "String should have at least 12 characters", "type": "string_too_short" }]
+  }
+}
+```
+
+Types: `bad_request` `unauthenticated` `forbidden` `not_found` `conflict`
+`payload_too_large` `unsupported_media_type` `validation_error` `rate_limited`
+`internal_error` `service_unavailable`.
+
 ---
 
 ## Auth
 
+Tokens come in pairs. The **access token** (15 min) goes in the `Authorization` header.
+The **refresh token** (14 days) is also set as an HttpOnly cookie scoped to `/api/auth`,
+and echoed in the body for non-browser clients. See
+[SECURITY.md](SECURITY.md#tokens) for the rotation and revocation model.
+
+### `GET /api/auth/options`  *(public)*
+What sign-in methods this deployment offers â€” used to render the login page.
+
+```json
+{ "password_login_enabled": true, "providers": [{ "name": "google", "label": "Google" }] }
+```
+
 ### `POST /api/auth/register`
-Create an account and receive a token. Rate limited (default 10/min).
+Create an account and receive a token pair. Rate limited (default 10/min).
 
 ```json
 // request
-{ "email": "you@example.com", "password": "at-least-8-chars" }
+{ "email": "you@example.com", "password": "at-least-12-chars", "full_name": null }
 // 201
-{ "access_token": "eyJ...", "token_type": "bearer" }
+{ "access_token": "eyJ...", "token_type": "bearer", "expires_in": 900, "refresh_token": "eyJ..." }
 ```
-`409` if the email is already registered.
+`409` if the email is already registered. The first account registered (or the one named
+by `PIPEFORGE_BOOTSTRAP_ADMIN_EMAIL`) becomes `admin`.
 
 ### `POST /api/auth/login`
-OAuth2 password flow â€” send **form-encoded** `username` (the email) and `password`.
+OAuth 2.0 password grant â€” send **form-encoded** `username` (the email) and `password`.
 
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
-  -d "username=you@example.com&password=at-least-8-chars"
+  -d "username=you@example.com&password=at-least-12-chars"
 ```
-`401` on bad credentials.
+`401` on bad credentials (identical message for unknown user and wrong password).
+`403` if the account is disabled.
+
+### `POST /api/auth/refresh`
+Rotate a refresh token into a new pair. Reads the HttpOnly cookie, or takes
+`{"refresh_token": "..."}` in the body.
+
+`401` if the token is unknown, expired, revoked, or **already used** â€” reuse revokes the
+entire token family.
+
+### `POST /api/auth/logout`  → `204`
+Revoke the presented refresh token and clear the cookie. Idempotent.
+
+### `POST /api/auth/logout-all`  → `204`
+Revoke every session for the caller and invalidate all outstanding access tokens.
+
+### `POST /api/auth/password`  → `204`
+`{ "current_password": "...", "new_password": "..." }`. Signs the user out everywhere.
+`400` if the current password is wrong.
 
 ### `GET /api/auth/me`
-Returns the current user `{ id, email, created_at }`.
+Returns `{ id, email, full_name, avatar_url, role, is_active, created_at, last_login_at }`.
+
+### `GET /api/auth/sessions`
+The caller's live sign-ins: `[{ id, issued_at, expires_at, user_agent, client_ip }]`.
+
+### Single sign-on
+
+### `GET /api/auth/oauth/{provider}/authorize?next=/`
+Browser redirect that starts the authorization-code + PKCE flow. `provider` is
+`google`, `github`, or `microsoft`. `404` if that provider is not configured.
+Navigate to it â€” do not fetch it.
+
+### `GET /api/auth/oauth/{provider}/callback`
+The provider's redirect target. On success it sets the refresh cookie and redirects to
+the SPA at `/auth/callback` â€” **no tokens appear in the URL**. On failure it redirects to
+`/login?sso_error=...`.
+
+---
+
+## Admin  *(requires the `admin` role)*
+
+All routes return `403` for non-admins.
+
+### `GET /api/admin/users?q=&limit=&offset=`
+List users, newest first. `q` filters by email substring.
+
+### `PATCH /api/admin/users/{id}/role`
+`{ "role": "viewer" | "user" | "admin" }`. Invalidates that user's outstanding access
+tokens. `400` if demoting yourself or the last active admin.
+
+### `PATCH /api/admin/users/{id}/active`
+`{ "is_active": false }`. Disabling also revokes every session immediately.
+`400` if disabling yourself or the last active admin.
+
+### `POST /api/admin/users/{id}/revoke-sessions`  → `204`
+Force a user off every device.
+
+### `GET /api/admin/audit?event_prefix=&actor_user_id=&outcome=&limit=&offset=`
+The audit trail, newest first. Filter by dotted event prefix (`auth.`, `admin.`,
+`dataset.`), actor, or `success`/`failure`.
 
 ---
 

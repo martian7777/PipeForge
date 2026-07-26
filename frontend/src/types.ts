@@ -40,15 +40,66 @@ export interface DetectResult {
   datetime_columns: string[];
 }
 
+export type Role = "viewer" | "user" | "admin";
+
 export interface AuthUser {
   id: number;
   email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: Role;
+  is_active: boolean;
   created_at: string;
+  last_login_at: string | null;
 }
 
 export interface Token {
   access_token: string;
   token_type: string;
+  expires_in: number;
+  refresh_token: string | null;
+}
+
+export interface SsoProvider {
+  name: string;
+  label: string;
+}
+
+export interface AuthOptions {
+  password_login_enabled: boolean;
+  providers: SsoProvider[];
+}
+
+export interface SessionInfo {
+  id: number;
+  issued_at: string;
+  expires_at: string;
+  user_agent: string | null;
+  client_ip: string | null;
+}
+
+export interface AuditEntry {
+  id: number;
+  event: string;
+  actor_user_id: number | null;
+  actor_email: string | null;
+  target: string | null;
+  outcome: "success" | "failure";
+  client_ip: string | null;
+  request_id: string | null;
+  detail_json: Record<string, unknown>;
+  created_at: string;
+}
+
+/** The structured error envelope every API failure returns. */
+export interface ApiErrorBody {
+  detail: string;
+  error: {
+    type: string;
+    message: string;
+    request_id: string | null;
+    details?: unknown;
+  };
 }
 
 export interface CleaningConfig {

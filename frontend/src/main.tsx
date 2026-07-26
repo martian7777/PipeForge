@@ -7,6 +7,8 @@ import UploadPage from "./pages/UploadPage";
 import DatasetDetailPage from "./pages/DatasetDetailPage";
 import RunEdaPage from "./pages/RunEdaPage";
 import AgentSettingsPage from "./pages/AgentSettingsPage";
+import AdminPage from "./pages/AdminPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import LoginPage from "./pages/LoginPage";
 import "./styles.css";
 
@@ -17,8 +19,17 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Route guard for admin-only screens. The backend enforces this too; this is UX. */
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { isAdmin, loading } = useAuth();
+  if (loading) return <div className="container spinner">Loading…</div>;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/auth/callback", element: <AuthCallbackPage /> },
   {
     path: "/",
     element: (
@@ -31,6 +42,14 @@ const router = createBrowserRouter([
       { path: "datasets/:id", element: <DatasetDetailPage /> },
       { path: "runs/:id", element: <RunEdaPage /> },
       { path: "settings/agents", element: <AgentSettingsPage /> },
+      {
+        path: "admin",
+        element: (
+          <RequireAdmin>
+            <AdminPage />
+          </RequireAdmin>
+        ),
+      },
     ],
   },
 ]);

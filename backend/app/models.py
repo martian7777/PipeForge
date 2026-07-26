@@ -1,10 +1,21 @@
-"""SQLAlchemy ORM models: Dataset, Run, ModelResult, Job."""
+"""SQLAlchemy ORM models: User, Dataset, Run, ModelResult, and the auth/audit tables."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, JSON, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    JSON,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -14,20 +25,129 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class Role:
+    """Role names, ordered least to most privileged. See ``security.require_role``."""
+
+    VIEWER = "viewer"  # read-only: can browse own datasets/runs, cannot create
+    USER = "user"  # default: full control of own resources
+    ADMIN = "admin"  # everything, plus user management and the audit log
+
+    ORDER = (VIEWER, USER, ADMIN)
+
+    @classmethod
+    def rank(cls, role: str) -> int:
+        try:
+            return cls.ORDER.index(role)
+        except ValueError:
+            return -1
+
+
 class User(Base):
-    """A registered user. Owns datasets and runs."""
+    """A registered user. Owns datasets and runs.
+
+    ``password_hash`` is nullable: accounts created through SSO have no local password
+    and must keep authenticating through their identity provider.
+    """
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(256))
+    password_hash: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    full_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    role: Mapped[str] = mapped_column(String(16), default=Role.USER, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Bumped on password change / "sign out everywhere" / role change. Access tokens
+    # carrying an older value are rejected, which revokes them without a denylist.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     datasets: Mapped[list["Dataset"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
     )
+    identities: Mapped[list["OAuthIdentity"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class OAuthIdentity(Base):
+    """A federated identity (provider + subject) linked to a local user.
+
+    The subject is the provider's stable, opaque user id -- never the email, which can
+    be reassigned. One user may link several providers.
+    """
+
+    __tablename__ = "oauth_identities"
+    __table_args__ = (UniqueConstraint("provider", "subject", name="uq_oauth_provider_subject"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(32))  # google|github|microsoft
+    subject: Mapped[str] = mapped_column(String(256))
+    email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="identities")
+
+
+class RefreshToken(Base):
+    """One issued refresh token, tracked so it can be rotated and revoked.
+
+    Only the token's ``jti`` is stored -- the token itself is a signed JWT held by the
+    client, so a database leak yields nothing usable.
+
+    Tokens form a *family*: each rotation links the old row to its replacement via the
+    same ``family_id``. Presenting an already-rotated token means it leaked, so the
+    whole family is revoked at once (reuse detection).
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    jti: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    family_id: Mapped[str] = mapped_column(String(64), index=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Why it was revoked: rotated | logout | logout_all | reuse_detected | admin
+    revoked_reason: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    replaced_by_jti: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    client_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    @property
+    def is_active(self) -> bool:
+        expires = self.expires_at
+        if expires.tzinfo is None:  # SQLite round-trips naive datetimes
+            expires = expires.replace(tzinfo=timezone.utc)
+        return self.revoked_at is None and expires > _utcnow()
+
+
+class AuditLog(Base):
+    """Append-only record of security-relevant events.
+
+    Written for auth events (login, logout, refresh, SSO, failures), admin actions, and
+    destructive data operations. Never updated or deleted by application code.
+    """
+
+    __tablename__ = "audit_log"
+    __table_args__ = (Index("ix_audit_actor_created", "actor_user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event: Mapped[str] = mapped_column(String(64), index=True)  # e.g. auth.login.success
+    actor_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    actor_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    target: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    outcome: Mapped[str] = mapped_column(String(16), default="success")  # success|failure
+    client_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    detail_json: Mapped[dict[str, Any]] = mapped_column("detail", JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, index=True)
 
 
 class Dataset(Base):

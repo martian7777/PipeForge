@@ -52,16 +52,58 @@ class Settings(BaseSettings):
     # JWT signing secret. MUST be overridden in production via PIPEFORGE_JWT_SECRET.
     jwt_secret: str = "dev-insecure-change-me-please-override-in-production-32b+"
     jwt_algorithm: str = "HS256"
-    access_token_ttl_minutes: int = 60 * 24  # 24h
+    # Access tokens are short-lived; clients silently renew with a refresh token.
+    access_token_ttl_minutes: int = 15
+    refresh_token_ttl_days: int = 14
+    # Refresh tokens are delivered as an HttpOnly cookie so browser JS never sees them.
+    refresh_cookie_name: str = "pipeforge_refresh"
+    refresh_cookie_secure: bool = False  # set True behind TLS in production
+    refresh_cookie_samesite: str = "lax"  # lax | strict | none
+    # Bootstrap: this email is promoted to admin on registration/first SSO login.
+    # If blank, the very first user to register becomes the admin.
+    bootstrap_admin_email: str = ""
+
+    # --- OAuth 2.0 / OIDC single sign-on ---
+    # Public base URL of the API as the browser sees it; used to build the redirect_uri
+    # registered with each provider (``{base}/api/auth/oauth/{provider}/callback``).
+    public_base_url: str = "http://localhost:5173"
+    # Where the browser lands after the callback completes (SPA route).
+    oauth_post_login_path: str = "/auth/callback"
+    # Providers are enabled purely by supplying a client id + secret.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    microsoft_client_id: str = ""
+    microsoft_client_secret: str = ""
+    microsoft_tenant: str = "common"
+    # Restrict SSO sign-up to these email domains (empty = allow any).
+    oauth_allowed_email_domains: list[str] = []
+    # Lifetime of the signed state/PKCE cookie that spans the authorize->callback hop.
+    oauth_state_ttl_seconds: int = 600
 
     # --- Rate limiting ---
     # slowapi limit strings. Storage backend: in-memory by default; set a Redis URI
     # (e.g. redis://localhost:6379) via PIPEFORGE_RATELIMIT_STORAGE for multi-replica use.
+    # Limits key on the authenticated user id when a valid bearer token is present, and
+    # fall back to the client IP otherwise (see app/ratelimit.py).
     ratelimit_default: str = "200/minute"
     ratelimit_auth: str = "10/minute"
     ratelimit_upload: str = "30/minute"
     ratelimit_agent: str = "60/minute"
     ratelimit_storage: str = "memory://"
+
+    # --- Observability ---
+    log_level: str = "INFO"
+    # "json" for machine-parsable production logs, "console" for readable dev output.
+    log_format: str = "json"
+    # Persist auth/admin/data events to the audit_log table in addition to stdout.
+    audit_to_db: bool = True
+
+    # --- Schema management ---
+    # Dev convenience: create tables from the ORM metadata on startup. Set False in
+    # production and run ``alembic upgrade head`` instead.
+    auto_create_tables: bool = True
 
     # --- Agentic AI layer (pluggable / bring-your-own provider) ---
     # Default provider for the agent layer. "off" disables agents entirely (the classic,

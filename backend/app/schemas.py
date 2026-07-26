@@ -34,7 +34,8 @@ class UserCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=12, max_length=128)
+    full_name: Optional[str] = Field(default=None, max_length=256)
 
 
 class UserOut(BaseModel):
@@ -42,12 +43,90 @@ class UserOut(BaseModel):
 
     id: int
     email: EmailStr
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    role: str
+    is_active: bool = True
     created_at: datetime
+    last_login_at: Optional[datetime] = None
 
 
 class Token(BaseModel):
+    """Token pair. ``refresh_token`` is also set as an HttpOnly cookie for browsers;
+    it is echoed in the body for native/CLI clients that cannot use cookies."""
+
     access_token: str
     token_type: str = "bearer"
+    expires_in: int = 0  # access-token lifetime, seconds
+    refresh_token: Optional[str] = None
+
+
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Optional: browsers send the token in the HttpOnly cookie instead.
+    refresh_token: Optional[str] = None
+
+
+class PasswordChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+
+
+class SsoProvider(BaseModel):
+    name: str
+    label: str
+
+
+class AuthOptions(BaseModel):
+    """What the login page needs to render itself."""
+
+    password_login_enabled: bool = True
+    providers: list[SsoProvider] = Field(default_factory=list)
+
+
+# ---- Admin ----
+
+
+class RoleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: str = Field(pattern="^(viewer|user|admin)$")
+
+
+class ActiveUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    is_active: bool
+
+
+class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    event: str
+    actor_user_id: Optional[int] = None
+    actor_email: Optional[str] = None
+    target: Optional[str] = None
+    outcome: str
+    client_ip: Optional[str] = None
+    request_id: Optional[str] = None
+    detail_json: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+
+class SessionOut(BaseModel):
+    """One live refresh token = one signed-in device."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    issued_at: datetime
+    expires_at: datetime
+    user_agent: Optional[str] = None
+    client_ip: Optional[str] = None
 
 
 # ---- Datasets ----

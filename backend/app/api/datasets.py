@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import audit
 from ..config import settings
 from ..db import get_db
 from ..models import Dataset, User
@@ -84,6 +85,18 @@ def upload_dataset(
     db.add(ds)
     db.commit()
     db.refresh(ds)
+
+    audit.record(
+        db,
+        audit.DATASET_UPLOADED,
+        request=request,
+        actor=user,
+        target=f"dataset:{ds.id}",
+        filename=file.filename,
+        size_bytes=size,
+        n_rows=ds.n_rows,
+        n_cols=ds.n_cols,
+    )
     return ds
 
 
@@ -126,9 +139,21 @@ def detect_task(
 
 @router.delete("/{dataset_id}", status_code=204)
 def delete_dataset(
-    dataset_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)
+    dataset_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
 ) -> None:
     ds = _get_owned_dataset_or_404(db, dataset_id, user)
+    filename = ds.filename
     Path(ds.path).unlink(missing_ok=True)
     db.delete(ds)
     db.commit()
+    audit.record(
+        db,
+        audit.DATASET_DELETED,
+        request=request,
+        actor=user,
+        target=f"dataset:{dataset_id}",
+        filename=filename,
+    )

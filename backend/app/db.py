@@ -50,8 +50,15 @@ def get_db() -> Iterator[Session]:
 
 
 def init_db() -> None:
-    """Create all tables. Called on application startup."""
+    """Prepare storage and, in development, the schema.
+
+    ``create_all`` is a convenience for local SQLite work: it creates missing tables but
+    never alters existing ones, so it cannot apply schema changes. Production sets
+    ``PIPEFORGE_AUTO_CREATE_TABLES=false`` and runs ``alembic upgrade head`` instead --
+    see ``backend/alembic/`` and docs/DEPLOYMENT.md.
+    """
     from . import models  # noqa: F401  (register models on Base)
 
     settings.ensure_dirs()
-    Base.metadata.create_all(bind=engine)
+    if settings.auto_create_tables:
+        Base.metadata.create_all(bind=engine)

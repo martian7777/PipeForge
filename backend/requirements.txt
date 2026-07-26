@@ -14,8 +14,14 @@ email-validator>=2.1   # pydantic EmailStr
 
 # --- Security / auth ---
 PyJWT>=2.8
+cryptography>=42.0     # RS256/ES256 verification of OIDC id_tokens (PyJWT backend)
 bcrypt>=4.1
 slowapi>=0.1.9         # rate limiting (in-memory or Redis backend)
+httpx>=0.27            # OAuth token exchange + provider userinfo calls
+itsdangerous>=2.1      # signed cookie support in Starlette
+
+# --- Schema migrations ---
+alembic>=1.13          # `alembic upgrade head`; replaces create_all in production
 
 # Optional: Postgres driver for horizontal scaling (multi-replica).
 # psycopg[binary]>=3.1
