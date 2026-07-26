@@ -5,7 +5,7 @@
 (``config.py``). This is the single place provider selection lives, so the rest of the
 agent code never imports a provider SDK directly.
 
-Model IDs default to Anthropic Claude tiers (Opus 4.8 for orchestration/analysis,
+Model IDs default to Anthropic Claude tiers (Opus 5 for orchestration/analysis,
 Haiku 4.5 for cheap sub-tasks, Sonnet 5 for chat) — see the ``llm_model_*`` settings.
 """
 from __future__ import annotations
@@ -85,22 +85,33 @@ PROVIDERS: dict[str, dict[str, Any]] = {
     "anthropic": {
         "label": "Anthropic (Claude)",
         "key_setting": "anthropic_api_key",
-        "models": ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"],
+        # Claude 5 family. Opus 5 = frontier, Sonnet 5 = balanced, Haiku 4.5 = cheap/fast.
+        "models": ["claude-opus-5", "claude-sonnet-5", "claude-fable-5", "claude-haiku-4-5"],
     },
     "openai": {
         "label": "OpenAI (GPT)",
         "key_setting": "openai_api_key",
-        "models": ["gpt-4o", "gpt-4o-mini", "o4-mini"],
+        # GPT-5.6 family (Jul 2026): Sol = flagship, Terra = balanced, Luna = cheapest.
+        # ``gpt-5.6`` is an alias that routes to Sol.
+        "models": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.4-mini", "gpt-5.4-nano"],
     },
     "google": {
         "label": "Google (Gemini)",
         "key_setting": "google_api_key",
-        "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+        # Gemini 3.x. The Pro tier is still preview-only (no GA ``gemini-3.5-pro`` yet);
+        # 3.6 Flash / 3.5 Flash-Lite are GA. All 1.5 and 2.0 models are shut down.
+        "models": [
+            "gemini-3.1-pro-preview",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+        ],
     },
     "ollama": {
         "label": "Ollama (local)",
         "key_setting": None,  # local; key optional
-        "models": ["llama3.1", "mistral", "qwen2.5"],
+        "models": ["llama3.3:70b", "qwen3-coder:30b", "gemma3:27b", "deepseek-r1:14b", "mistral"],
     },
     "openai_compatible": {
         "label": "OpenAI-compatible (custom base URL)",
